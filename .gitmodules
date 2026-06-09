@@ -1,0 +1,3 @@
+[submodule "shared/eagle-back"]
+	path = shared/eagle-back
+	url = https://github.com/brunosantoos/eagle-back.git

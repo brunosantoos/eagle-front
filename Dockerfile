@@ -8,6 +8,7 @@ RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
+COPY shared/eagle-back/package.json shared/eagle-back/pnpm-lock.yaml ./shared/eagle-back/
 RUN pnpm install --frozen-lockfile
 
 COPY . ./
