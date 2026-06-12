@@ -63,9 +63,7 @@ export default function AdminLogin() {
             Voltar ao site
           </Link>
           <div className="mt-6 flex justify-center">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-eagle-red via-red-800 to-red-950 flex items-center justify-center shadow-xl shadow-red-900/40 ring-1 ring-red-500/30">
-              <img src="/logo.png" alt="Eagle Center" className="h-10 w-10 object-contain" />
-            </div>
+            <img src="/logo.png" alt="Eagle Center" className="h-16 w-auto object-contain" />
           </div>
           <h1 className="mt-5 text-2xl md:text-3xl font-heading font-bold text-white">
             Painel administrativo
