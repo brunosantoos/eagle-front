@@ -1,17 +1,23 @@
 import {
   type LucideIcon,
+  BarChart3,
   BookOpen,
   Briefcase,
+  Building2,
   ExternalLink,
+  GraduationCap,
+  Handshake,
   Home,
   Image as ImageIcon,
   Inbox,
   LogOut,
+  MapPin,
   PanelLeft,
   Plus,
   RotateCcw,
   Save,
   Trash2,
+  TrendingUp,
   Users,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -22,11 +28,17 @@ import { RichTextEditor } from '../../components/admin/RichTextEditor';
 import { useAdminAuth, type AdminRole } from '../../context/AdminAuthProvider';
 import { useSiteContent } from '../../context/SiteContentProvider';
 import { useToast } from '../../context/ToastProvider';
-import { defaultSiteContent } from '../../lib/siteContent';
+import { CARD_ICON_OPTIONS, resolveCardIcon } from '../../lib/cardIcons';
+import { defaultSiteContent, type HeroMediaType } from '../../lib/siteContent';
 import { AdminMediaPanel } from './AdminMediaPanel';
 import { ImageUploader } from '../../components/admin/ImageUploader';
+import { VideoUploader } from '../../components/admin/VideoUploader';
 import { AdminUsersPanel } from './AdminUsersPanel';
 import AdminLeadsPanel from './AdminLeadsPanel';
+
+/** Fallbacks por posição usados na página pública quando o card não tem ícone próprio. */
+const WHY_FALLBACK_ICONS = [TrendingUp, Building2, Handshake] as const;
+const SUPPORT_FALLBACK_ICONS = [MapPin, GraduationCap, BarChart3] as const;
 
 const inCls =
   'w-full bg-eagle-black/80 border border-zinc-700/80 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 transition-colors hover:border-zinc-600 focus:outline-none focus:border-eagle-red focus:ring-2 focus:ring-eagle-red/30';
@@ -85,6 +97,76 @@ function SectionSaveBar({
   );
 }
 
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <div>
+      <label className={lbCls}>{label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={value || '#ffffff'}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-10 w-14 shrink-0 rounded-lg border border-zinc-700/80 bg-eagle-black/80 cursor-pointer p-1"
+        />
+        <span className="text-xs text-zinc-400 flex-1 truncate">
+          {value || 'Padrão do site'}
+        </span>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="shrink-0 text-xs text-zinc-500 hover:text-eagle-gold transition-colors"
+          >
+            Usar padrão
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CardIconSelect({
+  value,
+  fallback,
+  onChange,
+}: {
+  value: string;
+  fallback: LucideIcon;
+  onChange: (icon: string) => void;
+}) {
+  const Preview = resolveCardIcon(value, fallback);
+  return (
+    <div>
+      <label className={lbCls}>Ícone do card</label>
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 shrink-0 rounded-lg border border-zinc-700/80 bg-eagle-black/60 flex items-center justify-center">
+          <Preview size={20} className="text-eagle-gold" />
+        </div>
+        <select
+          className={inCls}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">Automático (padrão da posição)</option>
+          {CARD_ICON_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 type AdminSectionId =
   | 'nav-footer'
   | 'home'
@@ -122,7 +204,7 @@ function getInitials(name: string | null, email: string | null) {
 }
 
 export default function AdminDashboard() {
-  const { content, setContent, resetContent } = useSiteContent();
+  const { content, setContent, resetContent, dbLoaded } = useSiteContent();
   const { logout, role, userName, userEmail } = useAdminAuth();
   const { success, error } = useToast();
 
@@ -154,65 +236,81 @@ export default function AdminDashboard() {
     }
   }, [allowedSections, active]);
 
+  // O draft nasce do localStorage; quando o conteúdo do banco chega, ele precisa
+  // ser re-sincronizado — sem isso o save sobrescreve o site com dados velhos.
+  useEffect(() => {
+    if (!dbLoaded) return;
+    setDraft(structuredClone(content));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbLoaded]);
+
+  const SAVE_ERROR_MSG =
+    'Não foi possível publicar no servidor. Verifique sua conexão e seu login e salve de novo.';
+
   const saveNavFooter = () => {
-    try {
-      setContent((prev) => ({
+    setContent(
+      (prev) => ({
         ...prev,
         nav: structuredClone(draft.nav),
         footer: structuredClone(draft.footer),
-      }));
-      success('Menu e rodapé salvos e publicados.');
-    } catch {
-      error('Não foi possível salvar. Tente de novo.');
-    }
+      }),
+      {
+        onSuccess: () => success('Menu e rodapé salvos e publicados.'),
+        onError: () => error(SAVE_ERROR_MSG),
+      },
+    );
   };
 
   const saveHome = () => {
-    try {
-      setContent((prev) => ({
+    setContent(
+      (prev) => ({
         ...prev,
         home: structuredClone(draft.home),
-      }));
-      success('Conteúdo da Home publicado.');
-    } catch {
-      error('Não foi possível salvar. Tente de novo.');
-    }
+      }),
+      {
+        onSuccess: () => success('Conteúdo da Home publicado.'),
+        onError: () => error(SAVE_ERROR_MSG),
+      },
+    );
   };
 
   const saveAbout = () => {
-    try {
-      setContent((prev) => ({
+    setContent(
+      (prev) => ({
         ...prev,
         about: structuredClone(draft.about),
-      }));
-      success('Página Sobre publicada.');
-    } catch {
-      error('Não foi possível salvar. Tente de novo.');
-    }
+      }),
+      {
+        onSuccess: () => success('Página Sobre publicada.'),
+        onError: () => error(SAVE_ERROR_MSG),
+      },
+    );
   };
 
   const saveFranchise = () => {
-    try {
-      setContent((prev) => ({
+    setContent(
+      (prev) => ({
         ...prev,
         franchise: structuredClone(draft.franchise),
-      }));
-      success('Página Franquia publicada.');
-    } catch {
-      error('Não foi possível salvar. Tente de novo.');
-    }
+      }),
+      {
+        onSuccess: () => success('Página Franquia publicada.'),
+        onError: () => error(SAVE_ERROR_MSG),
+      },
+    );
   };
 
   const saveMedia = () => {
-    try {
-      setContent((prev) => ({
+    setContent(
+      (prev) => ({
         ...prev,
         media: structuredClone(draft.media),
-      }));
-      success('Imagens e vídeos publicados no site.');
-    } catch {
-      error('Não foi possível salvar. Tente de novo.');
-    }
+      }),
+      {
+        onSuccess: () => success('Imagens e vídeos publicados no site.'),
+        onError: () => error(SAVE_ERROR_MSG),
+      },
+    );
   };
 
   const sidebarGroups: SidebarGroup[] = [
@@ -755,6 +853,204 @@ export default function AdminDashboard() {
                 </div>
 
                 {homeTab === 'hero' && (<>
+                <div className="p-4 rounded-xl border border-zinc-800 bg-eagle-black/40 space-y-4">
+                  <div>
+                    <p className="text-sm font-heading font-semibold text-white">
+                      Mídia principal (banner do topo)
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Escolha o que aparece na abertura da Home: vídeo, imagem única ou carrossel de imagens. Ideal para campanhas e promoções.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      [
+                        { id: 'video', label: 'Vídeo' },
+                        { id: 'image', label: 'Imagem única' },
+                        { id: 'carousel', label: 'Carrossel' },
+                      ] as { id: HeroMediaType; label: string }[]
+                    ).map((t) => {
+                      const on = draft.home.heroMedia.type === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() =>
+                            setDraft((d) => ({
+                              ...d,
+                              home: {
+                                ...d.home,
+                                heroMedia: { ...d.home.heroMedia, type: t.id },
+                              },
+                            }))
+                          }
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${on
+                            ? 'bg-eagle-red/15 border-eagle-red/40 text-white shadow-sm shadow-red-950/30'
+                            : 'border-zinc-700/80 text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {draft.home.heroMedia.type === 'video' && (
+                    <div className="space-y-3">
+                      <VideoUploader
+                        label="Vídeo do banner"
+                        hint="Formato MP4 na horizontal (ex.: 1920x1080px)."
+                        value={draft.home.heroMedia.videoUrl || draft.media.homeHeroVideo}
+                        onChange={(url) =>
+                          setDraft((d) => ({
+                            ...d,
+                            home: {
+                              ...d.home,
+                              heroMedia: { ...d.home.heroMedia, videoUrl: url },
+                            },
+                          }))
+                        }
+                      />
+                      <div>
+                        <label className={lbCls}>Ou cole a URL do vídeo</label>
+                        <input
+                          className={inCls}
+                          placeholder="Deixe vazio para usar o vídeo da aba Mídias"
+                          value={draft.home.heroMedia.videoUrl}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              home: {
+                                ...d.home,
+                                heroMedia: { ...d.home.heroMedia, videoUrl: e.target.value },
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {draft.home.heroMedia.type === 'image' && (
+                    <ImageUploader
+                      label="Imagem do banner"
+                      hint="Dimensão recomendada: 1920x1080px"
+                      aspect="16/9"
+                      maxWidth="320px"
+                      value={draft.home.heroMedia.imageUrl}
+                      onChange={(url) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: {
+                            ...d.home,
+                            heroMedia: { ...d.home.heroMedia, imageUrl: url },
+                          },
+                        }))
+                      }
+                    />
+                  )}
+
+                  {draft.home.heroMedia.type === 'carousel' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs text-zinc-500">
+                          Imagens do carrossel:{' '}
+                          <span className="text-zinc-300 font-semibold">
+                            {draft.home.heroMedia.carouselImages.length}
+                          </span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDraft((d) => ({
+                              ...d,
+                              home: {
+                                ...d.home,
+                                heroMedia: {
+                                  ...d.home.heroMedia,
+                                  carouselImages: [...d.home.heroMedia.carouselImages, ''],
+                                },
+                              },
+                            }))
+                          }
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-eagle-red hover:bg-red-700 active:bg-red-800 text-white text-xs font-heading font-semibold ring-1 ring-red-500/30 hover:ring-red-400/40 transition-all"
+                        >
+                          <Plus size={14} strokeWidth={2.5} />
+                          Adicionar imagem
+                        </button>
+                      </div>
+                      <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {draft.home.heroMedia.carouselImages.map((img, i) => (
+                          <div
+                            key={i}
+                            className="relative p-3 rounded-xl border border-zinc-800 bg-eagle-black/50 space-y-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold text-eagle-gold">
+                                Imagem {i + 1}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDraft((d) => ({
+                                    ...d,
+                                    home: {
+                                      ...d.home,
+                                      heroMedia: {
+                                        ...d.home.heroMedia,
+                                        carouselImages: d.home.heroMedia.carouselImages.filter(
+                                          (_, idx) => idx !== i,
+                                        ),
+                                      },
+                                    },
+                                  }))
+                                }
+                                title="Remover imagem"
+                                aria-label={`Remover imagem ${i + 1}`}
+                                className="p-1 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                            <ImageUploader
+                              label=""
+                              hint="Dimensão recomendada: 1920x1080px"
+                              aspect="16/9"
+                              value={img}
+                              onChange={(url) =>
+                                setDraft((d) => {
+                                  const carouselImages = [...d.home.heroMedia.carouselImages];
+                                  carouselImages[i] = url;
+                                  return {
+                                    ...d,
+                                    home: {
+                                      ...d.home,
+                                      heroMedia: { ...d.home.heroMedia, carouselImages },
+                                    },
+                                  };
+                                })
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {draft.home.heroMedia.carouselImages.length === 0 && (
+                        <p className="text-xs text-amber-500/90">
+                          Adicione ao menos uma imagem — sem imagens, o site mostra o vídeo padrão.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2">
+                  <p className="text-sm font-heading font-semibold text-white">
+                    Texto principal (segundo hero)
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Bloco com título e subtítulo sobre a imagem de fundo. A imagem é trocada na aba Mídias (&quot;Home — fundo do segundo hero&quot;).
+                  </p>
+                </div>
                 <div>
                   <label className={lbCls}>Eyebrow</label>
                   <input
@@ -820,6 +1116,218 @@ export default function AdminDashboard() {
                       }))
                     }
                   />
+                </div>
+
+                <div className="p-4 rounded-xl border border-zinc-800 bg-eagle-black/40 space-y-4">
+                  <div>
+                    <p className="text-sm font-heading font-semibold text-white">
+                      Aparência do segundo hero
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Alinhamento do texto, enquadramento da imagem de fundo, máscara escura e cores.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className={lbCls}>Alinhamento do texto</label>
+                    <div className="flex flex-wrap gap-2">
+                      {(
+                        [
+                          { id: 'left', label: 'Esquerda' },
+                          { id: 'center', label: 'Centro' },
+                          { id: 'right', label: 'Direita' },
+                        ] as { id: 'left' | 'center' | 'right'; label: string }[]
+                      ).map((t) => {
+                        const on = draft.home.secondHero.textAlign === t.id;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() =>
+                              setDraft((d) => ({
+                                ...d,
+                                home: {
+                                  ...d.home,
+                                  secondHero: { ...d.home.secondHero, textAlign: t.id },
+                                },
+                              }))
+                            }
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${on
+                              ? 'bg-eagle-red/15 border-eagle-red/40 text-white shadow-sm shadow-red-950/30'
+                              : 'border-zinc-700/80 text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                            }`}
+                          >
+                            {t.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={lbCls}>Posição da imagem (foco do corte)</label>
+                      <select
+                        className={inCls}
+                        value={draft.home.secondHero.objectPosition}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            home: {
+                              ...d.home,
+                              secondHero: {
+                                ...d.home.secondHero,
+                                objectPosition: e.target
+                                  .value as typeof d.home.secondHero.objectPosition,
+                              },
+                            },
+                          }))
+                        }
+                      >
+                        <option value="center">Centro</option>
+                        <option value="top">Topo</option>
+                        <option value="bottom">Base</option>
+                        <option value="left">Esquerda</option>
+                        <option value="right">Direita</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={lbCls}>Ajuste da imagem</label>
+                      <select
+                        className={inCls}
+                        value={draft.home.secondHero.objectFit}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            home: {
+                              ...d.home,
+                              secondHero: {
+                                ...d.home.secondHero,
+                                objectFit: e.target
+                                  .value as typeof d.home.secondHero.objectFit,
+                              },
+                            },
+                          }))
+                        }
+                      >
+                        <option value="cover">Preencher a tela (corta as bordas)</option>
+                        <option value="contain">Mostrar a imagem inteira</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={draft.home.secondHero.overlayEnabled}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            home: {
+                              ...d.home,
+                              secondHero: {
+                                ...d.home.secondHero,
+                                overlayEnabled: e.target.checked,
+                              },
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 rounded border-zinc-600 bg-eagle-black accent-red-600"
+                      />
+                      <span className="text-sm text-zinc-300">
+                        Aplicar máscara escura sobre a imagem (melhora a leitura do texto)
+                      </span>
+                    </label>
+                    {draft.home.secondHero.overlayEnabled && (
+                      <div>
+                        <label className={lbCls}>
+                          Intensidade da máscara:{' '}
+                          <span className="text-eagle-gold font-semibold">
+                            {draft.home.secondHero.overlayOpacity}%
+                          </span>
+                        </label>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={5}
+                          value={draft.home.secondHero.overlayOpacity}
+                          onChange={(e) =>
+                            setDraft((d) => ({
+                              ...d,
+                              home: {
+                                ...d.home,
+                                secondHero: {
+                                  ...d.home.secondHero,
+                                  overlayOpacity: Number(e.target.value),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full max-w-sm accent-red-600"
+                        />
+                        <p className="text-[11px] text-zinc-500 mt-1">
+                          0% = imagem original · 100% = totalmente escura. Valores altos deixam a foto escura demais.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4 pt-1">
+                    <ColorField
+                      label="Cor do eyebrow"
+                      value={draft.home.secondHero.eyebrowColor}
+                      onChange={(c) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: {
+                            ...d.home,
+                            secondHero: { ...d.home.secondHero, eyebrowColor: c },
+                          },
+                        }))
+                      }
+                    />
+                    <ColorField
+                      label="Cor do título"
+                      value={draft.home.secondHero.titleColor}
+                      onChange={(c) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: {
+                            ...d.home,
+                            secondHero: { ...d.home.secondHero, titleColor: c },
+                          },
+                        }))
+                      }
+                    />
+                    <ColorField
+                      label="Cor do destaque do título"
+                      value={draft.home.secondHero.highlightColor}
+                      onChange={(c) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: {
+                            ...d.home,
+                            secondHero: { ...d.home.secondHero, highlightColor: c },
+                          },
+                        }))
+                      }
+                    />
+                    <ColorField
+                      label="Cor do subtítulo"
+                      value={draft.home.secondHero.subtitleColor}
+                      onChange={(c) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: {
+                            ...d.home,
+                            secondHero: { ...d.home.secondHero, subtitleColor: c },
+                          },
+                        }))
+                      }
+                    />
+                  </div>
                 </div>
 
                 </>)}
@@ -1069,6 +1577,7 @@ export default function AdminDashboard() {
                     </div>
                     <ImageUploader
                       label="Imagem do card"
+                      hint="Dimensão recomendada: 760x960px"
                       value={w.img}
                       aspect="4/5"
                       onChange={(url) =>
@@ -1222,6 +1731,18 @@ export default function AdminDashboard() {
                       setDraft((d) => ({
                         ...d,
                         about: { ...d.about, heroTitle: html },
+                      }))
+                    }
+                  />
+                </div>
+                <div className="max-w-sm">
+                  <ColorField
+                    label="Cor do título (sobre a imagem de fundo)"
+                    value={draft.about.heroTitleColor}
+                    onChange={(c) =>
+                      setDraft((d) => ({
+                        ...d,
+                        about: { ...d.about, heroTitleColor: c },
                       }))
                     }
                   />
@@ -1541,7 +2062,10 @@ export default function AdminDashboard() {
                         ...d,
                         franchise: {
                           ...d.franchise,
-                          whyCards: [...d.franchise.whyCards, { title: 'Novo card', desc: '' }],
+                          whyCards: [
+                            ...d.franchise.whyCards,
+                            { title: 'Novo card', desc: '', icon: 'star' },
+                          ],
                         },
                       }))
                     }
@@ -1576,6 +2100,20 @@ export default function AdminDashboard() {
                         <Trash2 size={14} />
                       </button>
                     </div>
+                    <CardIconSelect
+                      value={card.icon}
+                      fallback={WHY_FALLBACK_ICONS[i] ?? TrendingUp}
+                      onChange={(icon) =>
+                        setDraft((d) => {
+                          const whyCards = [...d.franchise.whyCards];
+                          whyCards[i] = { ...whyCards[i], icon };
+                          return {
+                            ...d,
+                            franchise: { ...d.franchise, whyCards },
+                          };
+                        })
+                      }
+                    />
                     <div>
                       <label className={lbCls}>Título</label>
                       <input
@@ -1657,7 +2195,10 @@ export default function AdminDashboard() {
                         ...d,
                         franchise: {
                           ...d.franchise,
-                          supportItems: [...d.franchise.supportItems, { title: 'Novo item', desc: '' }],
+                          supportItems: [
+                            ...d.franchise.supportItems,
+                            { title: 'Novo item', desc: '', icon: 'check-circle' },
+                          ],
                         },
                       }))
                     }
@@ -1694,6 +2235,20 @@ export default function AdminDashboard() {
                         <Trash2 size={14} />
                       </button>
                     </div>
+                    <CardIconSelect
+                      value={item.icon}
+                      fallback={SUPPORT_FALLBACK_ICONS[i] ?? MapPin}
+                      onChange={(icon) =>
+                        setDraft((d) => {
+                          const supportItems = [...d.franchise.supportItems];
+                          supportItems[i] = { ...supportItems[i], icon };
+                          return {
+                            ...d,
+                            franchise: { ...d.franchise, supportItems },
+                          };
+                        })
+                      }
+                    />
                     <div>
                       <label className={lbCls}>Título</label>
                       <input

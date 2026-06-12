@@ -17,10 +17,20 @@ import {
 } from '../lib/siteContent';
 import { trpc } from '../lib/trpc';
 
+type SaveCallbacks = {
+  onSuccess?: () => void;
+  onError?: (message: string) => void;
+};
+
 type SiteContentContextValue = {
   content: SiteContent;
-  setContent: (updater: (prev: SiteContent) => SiteContent) => void;
+  setContent: (
+    updater: (prev: SiteContent) => SiteContent,
+    callbacks?: SaveCallbacks,
+  ) => void;
   resetContent: () => void;
+  /** true depois que o conteúdo do banco chegou (antes disso o estado vem do localStorage). */
+  dbLoaded: boolean;
 };
 
 const SiteContentContext = createContext<SiteContentContextValue | null>(null);
@@ -53,7 +63,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const resetMutation = trpc.siteContent.reset.useMutation();
 
   const setContent = useCallback(
-    (updater: (prev: SiteContent) => SiteContent) => {
+    (
+      updater: (prev: SiteContent) => SiteContent,
+      callbacks?: SaveCallbacks,
+    ) => {
       const next = updater(contentRef.current);
       setContentState(next);
       try {
@@ -61,7 +74,16 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       } catch {
         /* ignore quota */
       }
-      updateMutation.mutate({ data: next });
+      updateMutation.mutate(
+        { data: next },
+        {
+          onSuccess: () => callbacks?.onSuccess?.(),
+          onError: (err) =>
+            callbacks?.onError?.(
+              err instanceof Error ? err.message : 'Erro ao salvar no servidor.',
+            ),
+        },
+      );
     },
     [updateMutation],
   );
@@ -77,8 +99,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   }, [resetMutation]);
 
   const value = useMemo(
-    () => ({ content, setContent, resetContent }),
-    [content, setContent, resetContent],
+    () => ({ content, setContent, resetContent, dbLoaded: dbData !== undefined }),
+    [content, setContent, resetContent, dbData],
   );
 
   return (
