@@ -86,6 +86,12 @@ export type SiteContent = {
     about: string;
     franchise: string;
   };
+  /** Página /privacidade — editada no Admin em "Menu e rodapé". */
+  privacyPolicy: {
+    title: string;
+    /** HTML do editor rich text. */
+    content: string;
+  };
   footer: {
     tagline: string;
     navTitle: string;
@@ -210,6 +216,11 @@ export const defaultSiteContent: SiteContent = {
     home: 'Home',
     about: 'Sobre Nós',
     franchise: 'Seja um Franqueado',
+  },
+  privacyPolicy: {
+    title: 'Política de Privacidade',
+    content:
+      '<p>A Eagle Center Fitness respeita a sua privacidade e protege os seus dados pessoais conforme a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).</p><p>Os dados enviados pelos formulários deste site (nome, e-mail, telefone, cidade e capital disponível) são usados exclusivamente para contato comercial sobre franquias e atendimento, e não são compartilhados com terceiros.</p><p>Para solicitar acesso, correção ou exclusão dos seus dados, entre em contato pelos canais informados no rodapé do site.</p>',
   },
   footer: {
     tagline:

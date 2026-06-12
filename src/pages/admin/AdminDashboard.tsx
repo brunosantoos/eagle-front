@@ -225,7 +225,7 @@ export default function AdminDashboard() {
   );
   const [resetOpen, setResetOpen] = useState(false);
   const [homeTab, setHomeTab] = useState<'hero' | 'experience' | 'carousel' | 'teaser'>('hero');
-  const [navTab, setNavTab] = useState<'menu' | 'footer'>('menu');
+  const [navTab, setNavTab] = useState<'menu' | 'footer' | 'privacy'>('menu');
   const [aboutTab, setAboutTab] = useState<'hero' | 'story' | 'pillars' | 'values'>('hero');
   const [franchiseTab, setFranchiseTab] = useState<'hero' | 'why' | 'support' | 'numbers' | 'form'>('hero');
 
@@ -253,6 +253,7 @@ export default function AdminDashboard() {
         ...prev,
         nav: structuredClone(draft.nav),
         footer: structuredClone(draft.footer),
+        privacyPolicy: structuredClone(draft.privacyPolicy),
       }),
       {
         onSuccess: () => success('Menu e rodapé salvos e publicados.'),
@@ -521,6 +522,7 @@ export default function AdminDashboard() {
                   {[
                     { id: 'menu', label: 'Menu (navbar)', hint: 'Links do topo' },
                     { id: 'footer', label: 'Rodapé', hint: 'Tagline, colunas, contato' },
+                    { id: 'privacy', label: 'Política de privacidade', hint: 'Página /privacidade' },
                   ].map((t) => {
                     const on = navTab === t.id;
                     return (
@@ -815,6 +817,37 @@ export default function AdminDashboard() {
                       }
                     />
                   </div>
+                </div>
+                </>)}
+
+                {navTab === 'privacy' && (<>
+                <p className="text-xs text-zinc-500 -mt-1">
+                  Conteúdo exibido na página <span className="text-zinc-300">/privacidade</span>, acessível pelo link &quot;{draft.footer.privacy}&quot; no rodapé do site.
+                </p>
+                <div>
+                  <label className={lbCls}>Título da página</label>
+                  <input
+                    className={inCls}
+                    value={draft.privacyPolicy.title}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        privacyPolicy: { ...d.privacyPolicy, title: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={lbCls}>Texto da política</label>
+                  <RichTextEditor
+                    value={draft.privacyPolicy.content}
+                    onChange={(html) =>
+                      setDraft((d) => ({
+                        ...d,
+                        privacyPolicy: { ...d.privacyPolicy, content: html },
+                      }))
+                    }
+                  />
                 </div>
                 </>)}
 

@@ -155,17 +155,11 @@ export function Footer() {
             >
               {content.footer.terms}
             </a>
-            <a
-              href="#"
+            <Link
+              to="/privacidade"
               className="text-eagle-muted hover:text-eagle-light text-xs transition-colors"
             >
               {content.footer.privacy}
-            </a>
-            <Link
-              to="/admin/login"
-              className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors"
-            >
-              Admin
             </Link>
           </div>
         </div>

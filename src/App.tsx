@@ -13,6 +13,7 @@ import { ProtectedAdminRoute } from './pages/admin/ProtectedAdminRoute';
 const Home = lazy(() => import('./pages/Home'));
 const Franchise = lazy(() => import('./pages/Franchise'));
 const About = lazy(() => import('./pages/About'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 
@@ -52,6 +53,7 @@ export default function App() {
                       <Route index element={<Home />} />
                       <Route path="franquia" element={<Franchise />} />
                       <Route path="sobre" element={<About />} />
+                      <Route path="privacidade" element={<PrivacyPolicy />} />
                     </Route>
                   </Routes>
                 </Suspense>
