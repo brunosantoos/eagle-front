@@ -11,6 +11,7 @@ import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Button } from "../components/ui/Button";
 import { useSiteContent } from "../context/SiteContentProvider";
 import { useToast } from "../context/ToastProvider";
+import { resolveCardIcon } from "../lib/cardIcons";
 import { trpc } from "../lib/trpc";
 
 const whyIcons = [TrendingUp, Building2, Handshake] as const;
@@ -35,7 +36,7 @@ export default function Franchise() {
     () =>
       f.whyCards.map((card, idx) => ({
         ...card,
-        icon: whyIcons[idx] ?? TrendingUp,
+        icon: resolveCardIcon(card.icon, whyIcons[idx] ?? TrendingUp),
       })),
     [f.whyCards],
   );
@@ -44,7 +45,7 @@ export default function Franchise() {
     () =>
       f.supportItems.map((item, idx) => ({
         ...item,
-        icon: supportIcons[idx] ?? MapPin,
+        icon: resolveCardIcon(item.icon, supportIcons[idx] ?? MapPin),
       })),
     [f.supportItems],
   );

@@ -103,6 +103,11 @@ export default function About() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="text-4xl md:text-5xl lg:text-7xl font-vonique  text-white uppercase tracking-tight max-w-6xl mx-auto leading-tight drop-shadow-2xl"
+            style={
+              content.about.heroTitleColor
+                ? { color: content.about.heroTitleColor }
+                : undefined
+            }
             dangerouslySetInnerHTML={{ __html: content.about.heroTitle }}
           />
         </div>

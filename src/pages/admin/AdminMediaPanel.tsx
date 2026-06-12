@@ -8,21 +8,26 @@ const FIELD_META: {
   title: string;
   hint: string;
   kind: 'image' | 'video';
+  /** Dimensão recomendada exibida junto ao campo de upload. */
+  dimension?: string;
 }[] = [
   {
     key: 'navLogo',
+    dimension: '360x120px',
     title: 'Menu — logo principal',
     hint: 'Ex.: /logo.png ou URL absoluta.',
     kind: 'image',
   },
   {
     key: 'navEagle',
+    dimension: '200x200px',
     title: 'Menu — águia',
     hint: 'Ex.: /eagle.png',
     kind: 'image',
   },
   {
     key: 'footerLogo',
+    dimension: '360x120px',
     title: 'Rodapé — logo',
     hint: 'Ex.: /logo.png',
     kind: 'image',
@@ -35,42 +40,49 @@ const FIELD_META: {
   },
   {
     key: 'homeSecondHeroBg',
+    dimension: '1900x1500px',
     title: 'Home — fundo do segundo hero',
     hint: 'Imagem grande atrás do título principal.',
     kind: 'image',
   },
   {
     key: 'homeExperienceImage',
+    dimension: '1200x1600px',
     title: 'Home — imagem da seção experiência',
     hint: 'Lado direito do bloco com lista.',
     kind: 'image',
   },
   {
     key: 'homeFranchiseTeaserImage',
+    dimension: '735x791px',
     title: 'Home — imagem do bloco franquia',
     hint: 'Grid grande antes do rodapé.',
     kind: 'image',
   },
   {
     key: 'aboutHeroBg',
+    dimension: '1900x1080px',
     title: 'Sobre — fundo do hero',
     hint: 'Imagem atrás do título da página.',
     kind: 'image',
   },
   {
     key: 'aboutStoryImage',
+    dimension: '800x800px',
     title: 'Sobre — imagem ao lado da história',
     hint: 'Ex.: /logo_draw.png',
     kind: 'image',
   },
   {
     key: 'aboutPillarsImage',
+    dimension: '1200x1200px',
     title: 'Sobre — imagem dos pilares',
     hint: 'Quadrado ao lado dos textos dos pilares.',
     kind: 'image',
   },
   {
     key: 'franchiseHeroBg',
+    dimension: '1900x1080px',
     title: 'Franquia — imagem lateral do hero',
     hint: 'Metade direita no desktop.',
     kind: 'image',
@@ -85,9 +97,11 @@ const FIELD_META: {
 
 function UploadField({
   kind,
+  dimension,
   onUploaded,
 }: {
   kind: 'image' | 'video';
+  dimension?: string;
   onUploaded: (url: string) => void;
 }) {
   const accept = kind === 'video' ? 'video/*' : 'image/*';
@@ -125,6 +139,11 @@ function UploadField({
   return (
     <div className="rounded-xl border border-dashed border-zinc-600/70 bg-zinc-950/50 p-4 space-y-3">
       <p className="text-xs font-medium text-zinc-400">Enviar novo arquivo</p>
+      {dimension && (
+        <p className="text-[11px] font-medium text-eagle-gold/90">
+          Dimensão recomendada: {dimension}
+        </p>
+      )}
       <input
         ref={inputRef}
         type="file"
@@ -180,7 +199,7 @@ export function AdminMediaPanel({
       </div>
 
       <div className="space-y-10">
-        {FIELD_META.map(({ key, title, hint, kind }) => {
+        {FIELD_META.map(({ key, title, hint, kind, dimension }) => {
           const url = media[key];
           return (
             <div
@@ -194,7 +213,11 @@ export function AdminMediaPanel({
                   </h3>
                   <p className="text-xs text-zinc-500 mt-1">{hint}</p>
                 </div>
-                <UploadField kind={kind} onUploaded={(url) => patch(key, url)} />
+                <UploadField
+                  kind={kind}
+                  dimension={dimension}
+                  onUploaded={(url) => patch(key, url)}
+                />
               </div>
               <div className="flex flex-col min-w-0">
                 <p className="text-xs font-medium text-zinc-500 mb-2">
