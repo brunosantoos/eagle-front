@@ -11,12 +11,15 @@ export function ImageUploader({
   label = 'Imagem',
   aspect = '16/9',
   maxWidth = '220px',
+  hint,
 }: {
   value: string;
   onChange: (url: string) => void;
   label?: string;
   aspect?: string;
   maxWidth?: string;
+  /** Texto auxiliar exibido sob o label (ex.: dimensão recomendada). */
+  hint?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -53,6 +56,9 @@ export function ImageUploader({
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium text-zinc-300 tracking-wide">{label}</p>
+      {hint && (
+        <p className="text-[11px] font-medium text-eagle-gold/90">{hint}</p>
+      )}
       <div
         className="relative rounded-xl border border-zinc-700/70 bg-zinc-950/40 overflow-hidden group w-full"
         style={{ aspectRatio: aspect, maxWidth }}

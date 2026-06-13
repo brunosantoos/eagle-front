@@ -1,15 +1,77 @@
 import { CheckCircle2 } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { useSiteContent } from "../context/SiteContentProvider";
+
+function HeroImageCarousel({ images }: { images: string[] }) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (images.length < 2) return;
+    const timer = setInterval(
+      () => setIndex((i) => (i + 1) % images.length),
+      5000,
+    );
+    return () => clearInterval(timer);
+  }, [images.length]);
+
+  return (
+    <div className="absolute inset-0">
+      {images.map((src, i) => (
+        <img
+          key={`${src}-${i}`}
+          src={src}
+          alt=""
+          referrerPolicy="no-referrer"
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+            i === index ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      ))}
+      {images.length > 1 && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+          {images.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setIndex(i)}
+              aria-label={`Imagem ${i + 1}`}
+              className={`h-2 rounded-full transition-all ${
+                i === index ? "w-6 bg-white" : "w-2 bg-white/40 hover:bg-white/70"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SECOND_HERO_ALIGN: Record<
+  "left" | "center" | "right",
+  { container: string; text: string }
+> = {
+  left: { container: "items-start", text: "text-left" },
+  center: { container: "items-center", text: "text-center" },
+  right: { container: "items-end", text: "text-right" },
+};
 
 export default function Home() {
   const { content } = useSiteContent();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const workouts = content.home.workouts;
+  const heroMedia = content.home.heroMedia;
+  const heroVideoUrl = heroMedia.videoUrl || content.media.homeHeroVideo;
+  const heroImageUrl = heroMedia.imageUrl;
+  const heroCarouselImages = useMemo(
+    () => heroMedia.carouselImages.filter(Boolean),
+    [heroMedia.carouselImages],
+  );
+  const secondHero = content.home.secondHero;
+  const secondHeroAlign = SECOND_HERO_ALIGN[secondHero.textAlign] ?? SECOND_HERO_ALIGN.center;
 
   // Triple the items for infinite loop
   const displayWorkouts = useMemo(
@@ -67,19 +129,29 @@ export default function Home() {
     <div className="w-full">
       {/* New Primary Hero Section */}
       <section className="relative min-h-[100vh] flex flex-col justify-end pb-16 md:pb-24 pt-32 overflow-hidden">
-        {/* Background Video */}
+        {/* Background media — tipo escolhido no Admin (vídeo, imagem única ou carrossel) */}
         <div className="absolute inset-0 z-0">
-          <video
-            key={content.media.homeHeroVideo}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover"
-          >
-            {/* Using a high quality fitness placeholder video from a free stock video CDN */}
-            <source src={content.media.homeHeroVideo} type="video/mp4" />
-          </video>
+          {heroMedia.type === "image" && heroImageUrl ? (
+            <img
+              src={heroImageUrl}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover"
+            />
+          ) : heroMedia.type === "carousel" && heroCarouselImages.length > 0 ? (
+            <HeroImageCarousel images={heroCarouselImages} />
+          ) : (
+            <video
+              key={heroVideoUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            >
+              <source src={heroVideoUrl} type="video/mp4" />
+            </video>
+          )}
           {/* Overlay gradient to ensure text readability */}
           {/* Stronger bottom gradient merging with the page dark theme for a smooth transition */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-eagle-black"></div>
@@ -91,37 +163,83 @@ export default function Home() {
 
       {/* Second Section (Former Hero) */}
       <section className="relative min-h-[100vh] flex items-center justify-center pt-24 pb-16 overflow-hidden bg-eagle-black">
-        {/* Background Image with Lighter Overlay */}
+        {/* Background Image — corte, posição e máscara configuráveis no Admin */}
         <div className="absolute inset-0 z-0">
           <img
             src={content.media.homeSecondHeroBg}
             alt="Premium Gym Interior"
-            className="w-full h-full object-cover opacity-60"
+            className="w-full h-full"
+            style={{
+              objectFit: secondHero.objectFit,
+              objectPosition: secondHero.objectPosition,
+            }}
             referrerPolicy="no-referrer"
           />
-          {/* Gradient overlay transitioning from solid black at the top to blend perfectly with the video banner */}
-          <div className="absolute inset-0 bg-gradient-to-b from-eagle-black via-eagle-black/60 to-eagle-black/90"></div>
+          {secondHero.overlayEnabled && (
+            <div
+              className="absolute inset-0 bg-eagle-black"
+              style={{
+                opacity:
+                  Math.min(100, Math.max(0, secondHero.overlayOpacity)) / 100,
+              }}
+            ></div>
+          )}
+          {/* Top fade blending with the video banner above */}
           <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-eagle-black via-eagle-black/80 to-transparent"></div>
         </div>
-        <div className="container mx-auto px-6 relative z-10 flex flex-col items-center text-center">
+        <div
+          className={`container mx-auto px-6 relative z-10 flex flex-col ${secondHeroAlign.container} ${secondHeroAlign.text}`}
+        >
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="max-w-4xl"
           >
-            <span className="text-eagle-gold font-sans tracking-[0.3em] uppercase text-sm md:text-base mb-6 block font-medium">
+            <span
+              className="text-eagle-gold font-sans tracking-[0.3em] uppercase text-sm md:text-base mb-6 block font-medium"
+              style={
+                secondHero.eyebrowColor
+                  ? { color: secondHero.eyebrowColor }
+                  : undefined
+              }
+            >
               {content.home.hero.eyebrow}
             </span>
-            <h1 className="text-5xl md:text-7xl font-heading font-bold text-eagle-red leading-tight mb-8 drop-shadow-2xl">
+            <h1
+              className="text-5xl md:text-7xl font-heading font-bold text-eagle-red leading-tight mb-8 drop-shadow-2xl"
+              style={
+                secondHero.titleColor
+                  ? { color: secondHero.titleColor }
+                  : undefined
+              }
+            >
               {content.home.hero.titleLine1}
               <br className="hidden md:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-eagle-gold to-yellow-600">
+              <span
+                className={
+                  secondHero.highlightColor
+                    ? undefined
+                    : "text-transparent bg-clip-text bg-gradient-to-r from-eagle-gold to-yellow-600"
+                }
+                style={
+                  secondHero.highlightColor
+                    ? { color: secondHero.highlightColor }
+                    : undefined
+                }
+              >
                 {content.home.hero.titleHighlight}
               </span>
             </h1>
             <p
-              className="text-lg md:text-xl text-eagle-light/80 font-light max-w-2xl mx-auto mb-12 leading-relaxed drop-shadow-md"
+              className={`text-lg md:text-xl text-eagle-light/80 font-light max-w-2xl mb-12 leading-relaxed drop-shadow-md ${
+                secondHero.textAlign === "center" ? "mx-auto" : ""
+              }`}
+              style={
+                secondHero.subtitleColor
+                  ? { color: secondHero.subtitleColor }
+                  : undefined
+              }
               dangerouslySetInnerHTML={{ __html: content.home.hero.subtitle }}
             />
           </motion.div>

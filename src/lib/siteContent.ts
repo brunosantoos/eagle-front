@@ -7,11 +7,39 @@ export type WorkoutCard = {
 export type FranchiseWhyCard = {
   title: string;
   desc: string;
+  /** Nome do ícone (ver lib/cardIcons.ts). '' = ícone automático por posição (compat com cards antigos). */
+  icon: string;
 };
 
 export type FranchiseSupportItem = {
   title: string;
   desc: string;
+  /** Nome do ícone (ver lib/cardIcons.ts). '' = ícone automático por posição (compat com cards antigos). */
+  icon: string;
+};
+
+export type HeroMediaType = 'video' | 'image' | 'carousel';
+
+export type HomeHeroMedia = {
+  type: HeroMediaType;
+  /** Vídeo do hero. '' = usa media.homeHeroVideo (compat). */
+  videoUrl: string;
+  imageUrl: string;
+  carouselImages: string[];
+};
+
+export type SecondHeroConfig = {
+  textAlign: 'left' | 'center' | 'right';
+  objectPosition: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  objectFit: 'cover' | 'contain';
+  overlayEnabled: boolean;
+  /** 0–100. Intensidade da máscara escura sobre a imagem. */
+  overlayOpacity: number;
+  /** Cores em hex. '' = cor padrão do site (fallback). */
+  eyebrowColor: string;
+  titleColor: string;
+  highlightColor: string;
+  subtitleColor: string;
 };
 
 export type CapitalOption = {
@@ -58,6 +86,12 @@ export type SiteContent = {
     about: string;
     franchise: string;
   };
+  /** Página /privacidade — editada no Admin em "Menu e rodapé". */
+  privacyPolicy: {
+    title: string;
+    /** HTML do editor rich text. */
+    content: string;
+  };
   footer: {
     tagline: string;
     navTitle: string;
@@ -78,12 +112,14 @@ export type SiteContent = {
     franchiseLink3: string;
   };
   home: {
+    heroMedia: HomeHeroMedia;
     hero: {
       eyebrow: string;
       titleLine1: string;
       titleHighlight: string;
       subtitle: string;
     };
+    secondHero: SecondHeroConfig;
     experience: {
       titleLine1: string;
       titleLine2: string;
@@ -107,6 +143,8 @@ export type SiteContent = {
     heroTitle: string;
     storyTitle: string;
     storyParagraphs: string[];
+    /** Cor do título do hero. '' = padrão (branco). */
+    heroTitleColor: string;
     pillarsTitle: string;
     pillarsIntro: string;
     pillarsHeadline: string;
@@ -179,6 +217,11 @@ export const defaultSiteContent: SiteContent = {
     about: 'Sobre Nós',
     franchise: 'Seja um Franqueado',
   },
+  privacyPolicy: {
+    title: 'Política de Privacidade',
+    content:
+      '<p>A Eagle Center Fitness respeita a sua privacidade e protege os seus dados pessoais conforme a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).</p><p>Os dados enviados pelos formulários deste site (nome, e-mail, telefone, cidade e capital disponível) são usados exclusivamente para contato comercial sobre franquias e atendimento, e não são compartilhados com terceiros.</p><p>Para solicitar acesso, correção ou exclusão dos seus dados, entre em contato pelos canais informados no rodapé do site.</p>',
+  },
   footer: {
     tagline:
       'Uma experiência exclusiva focada em bem-estar, conforto e resultados.',
@@ -200,12 +243,29 @@ export const defaultSiteContent: SiteContent = {
     franchiseLink3: 'Investimento',
   },
   home: {
+    heroMedia: {
+      type: 'video',
+      videoUrl: '',
+      imageUrl: '',
+      carouselImages: [],
+    },
     hero: {
       eyebrow: 'A Nova Era do Fitness Premium',
       titleLine1: 'Exclusividade, Conforto e ',
       titleHighlight: 'Resultados Reais.',
       subtitle:
         'Descubra um ambiente projetado para quem não abre mão do melhor. Equipamentos de ponta, atendimento personalizado e uma atmosfera que inspira.',
+    },
+    secondHero: {
+      textAlign: 'center',
+      objectPosition: 'center',
+      objectFit: 'cover',
+      overlayEnabled: true,
+      overlayOpacity: 60,
+      eyebrowColor: '',
+      titleColor: '',
+      highlightColor: '',
+      subtitleColor: '',
     },
     experience: {
       titleLine1: 'O Diferencial Não Está no Volume.',
@@ -264,6 +324,7 @@ export const defaultSiteContent: SiteContent = {
   },
   about: {
     heroTitle: 'UMA MARCA CRIADA COM SUOR, SONHO E RESULTADO.',
+    heroTitleColor: '',
     storyTitle: 'Nossa Historia',
     storyParagraphs: [
       'A Eagle Center Fitness nasceu da insatisfação com o modelo tradicional de academias. Observamos um mercado saturado de espaços lotados, atendimento impessoal e foco exclusivo em volume de matrículas.',
@@ -298,14 +359,17 @@ export const defaultSiteContent: SiteContent = {
       'Nosso modelo foge da guerra de preços das academias low-cost. Entregamos valor real, o que nos permite praticar margens mais saudáveis.',
     whyCards: [
       {
+        icon: '',
         title: 'Alta Rentabilidade',
         desc: 'Ticket médio elevado e estrutura de custos otimizada garantem margens atrativas.',
       },
       {
+        icon: '',
         title: 'Projeto Arquitetônico',
         desc: 'Layout inteligente que maximiza o uso do espaço mantendo a sensação de amplitude.',
       },
       {
+        icon: '',
         title: 'Retenção de Clientes',
         desc: 'Foco total na experiência do usuário, resultando em taxas de churn muito abaixo do mercado.',
       },
@@ -315,14 +379,17 @@ export const defaultSiteContent: SiteContent = {
       'Não entregamos apenas uma marca, entregamos um sistema completo de gestão. Nossa equipe acompanha você desde a escolha do ponto até a operação diária.',
     supportItems: [
       {
+        icon: '',
         title: 'Geomarketing e Ponto',
         desc: 'Análise detalhada para escolha do ponto comercial ideal.',
       },
       {
+        icon: '',
         title: 'Treinamento Contínuo',
         desc: 'Capacitação da equipe técnica e comercial.',
       },
       {
+        icon: '',
         title: 'Gestão e Marketing',
         desc: 'Sistemas integrados e campanhas de marketing centralizadas.',
       },
