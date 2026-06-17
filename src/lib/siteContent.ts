@@ -47,6 +47,12 @@ export type CapitalOption = {
   label: string;
 };
 
+export type SocialLink = {
+  /** Chave da plataforma (ver lib/socialIcons.ts). */
+  platform: string;
+  url: string;
+};
+
 export type BusinessNumber = {
   label: string;
   value: string;
@@ -110,6 +116,7 @@ export type SiteContent = {
     franchiseLink1: string;
     franchiseLink2: string;
     franchiseLink3: string;
+    socialLinks: SocialLink[];
   };
   home: {
     heroMedia: HomeHeroMedia;
@@ -241,6 +248,10 @@ export const defaultSiteContent: SiteContent = {
     franchiseLink1: 'Modelo de Negócio',
     franchiseLink2: 'Suporte ao Franqueado',
     franchiseLink3: 'Investimento',
+    socialLinks: [
+      { platform: 'instagram', url: '' },
+      { platform: 'linkedin', url: '' },
+    ],
   },
   home: {
     heroMedia: {
