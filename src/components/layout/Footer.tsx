@@ -1,6 +1,7 @@
 import { useSiteContent } from "@/src/context/SiteContentProvider";
 import { cn } from "@/src/lib/utils";
-import { Instagram, Linkedin, Mail, MapPin, Phone } from "lucide-react";
+import { resolveSocialIcon, resolveSocialLabel } from "@/src/lib/socialIcons";
+import { Mail, MapPin, Phone } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 export function Footer() {
@@ -36,18 +37,23 @@ export function Footer() {
               dangerouslySetInnerHTML={{ __html: content.footer.tagline }}
             />
             <div className="flex gap-4">
-              <a
-                href="#"
-                className="text-eagle-muted hover:text-eagle-red transition-colors"
-              >
-                <Instagram size={20} />
-              </a>
-              <a
-                href="#"
-                className="text-eagle-muted hover:text-eagle-red transition-colors"
-              >
-                <Linkedin size={20} />
-              </a>
+              {content.footer.socialLinks
+                .filter((s) => s.url.trim() !== "")
+                .map((s, i) => {
+                  const Icon = resolveSocialIcon(s.platform);
+                  return (
+                    <a
+                      key={i}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={resolveSocialLabel(s.platform)}
+                      className="text-eagle-muted hover:text-eagle-red transition-colors"
+                    >
+                      <Icon size={20} />
+                    </a>
+                  );
+                })}
             </div>
           </div>
 

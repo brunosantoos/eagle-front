@@ -29,6 +29,7 @@ import { useAdminAuth, type AdminRole } from '../../context/AdminAuthProvider';
 import { useSiteContent } from '../../context/SiteContentProvider';
 import { useToast } from '../../context/ToastProvider';
 import { CARD_ICON_OPTIONS, resolveCardIcon } from '../../lib/cardIcons';
+import { SOCIAL_PLATFORMS, resolveSocialIcon } from '../../lib/socialIcons';
 import { defaultSiteContent, type HeroMediaType } from '../../lib/siteContent';
 import { AdminMediaPanel } from './AdminMediaPanel';
 import { ImageUploader } from '../../components/admin/ImageUploader';
@@ -816,6 +817,105 @@ export default function AdminDashboard() {
                         }))
                       }
                     />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-800">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-heading font-semibold text-eagle-light">Redes sociais</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        Ícones exibidos no rodapé. Links vazios não aparecem no site.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDraft((d) => ({
+                          ...d,
+                          footer: {
+                            ...d.footer,
+                            socialLinks: [
+                              ...d.footer.socialLinks,
+                              { platform: 'instagram', url: '' },
+                            ],
+                          },
+                        }))
+                      }
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-eagle-red hover:bg-red-700 active:bg-red-800 text-white text-xs font-heading font-semibold ring-1 ring-red-500/30 hover:ring-red-400/40 transition-all"
+                    >
+                      <Plus size={14} strokeWidth={2.5} />
+                      Adicionar rede
+                    </button>
+                  </div>
+                  <div className="space-y-3 mt-3">
+                    {draft.footer.socialLinks.map((s, i) => {
+                      const Icon = resolveSocialIcon(s.platform);
+                      return (
+                        <div key={i} className="p-4 rounded-xl border border-zinc-800 space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="flex items-center gap-2 text-xs text-eagle-gold font-semibold">
+                              <Icon size={16} />
+                              Rede {i + 1}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDraft((d) => ({
+                                  ...d,
+                                  footer: {
+                                    ...d.footer,
+                                    socialLinks: d.footer.socialLinks.filter((_, idx) => idx !== i),
+                                  },
+                                }))
+                              }
+                              title="Remover rede"
+                              aria-label={`Remover rede ${i + 1}`}
+                              className="p-1 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                              <label className={lbCls}>Plataforma</label>
+                              <select
+                                className={inCls}
+                                value={s.platform}
+                                onChange={(e) =>
+                                  setDraft((d) => {
+                                    const socialLinks = [...d.footer.socialLinks];
+                                    socialLinks[i] = { ...socialLinks[i], platform: e.target.value };
+                                    return { ...d, footer: { ...d.footer, socialLinks } };
+                                  })
+                                }
+                              >
+                                {SOCIAL_PLATFORMS.map((p) => (
+                                  <option key={p.value} value={p.value}>
+                                    {p.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={lbCls}>URL</label>
+                              <input
+                                className={inCls}
+                                placeholder="https://..."
+                                value={s.url}
+                                onChange={(e) =>
+                                  setDraft((d) => {
+                                    const socialLinks = [...d.footer.socialLinks];
+                                    socialLinks[i] = { ...socialLinks[i], url: e.target.value };
+                                    return { ...d, footer: { ...d.footer, socialLinks } };
+                                  })
+                                }
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
                 </>)}
