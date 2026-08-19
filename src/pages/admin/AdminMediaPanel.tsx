@@ -1,7 +1,19 @@
 /// <reference types="vite/client" />
 import { useState, useRef } from 'react';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon, Pencil } from 'lucide-react';
 import type { SiteMedia } from '../../lib/siteContent';
+import { resolveMediaUrl } from '../../lib/mediaUrl';
+import { uploadFile } from '../../lib/upload';
+import {
+  ImageCropModal,
+  type ImageEffectsConfig,
+} from '../../components/admin/ImageCropModal';
+
+/** '1900x1500px' -> '1900/1500' (proporção sugerida no editor de recorte). */
+function aspectFromDimension(dimension?: string): string | undefined {
+  const match = dimension?.match(/(\d+)\s*[x×]\s*(\d+)/i);
+  return match ? `${match[1]}/${match[2]}` : undefined;
+}
 
 const FIELD_META: {
   key: keyof SiteMedia;
@@ -109,26 +121,14 @@ function UploadField({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const backendUrl =
-    (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
-    'http://localhost:3001';
-
   const handleUpload = async () => {
     const file = inputRef.current?.files?.[0];
     if (!file) return;
     setUploading(true);
     setError(null);
     try {
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch(`${backendUrl}/api/upload`, {
-        method: 'POST',
-        body: form,
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-      const data = await res.json();
-      onUploaded(`${backendUrl}${data.url}`);
+      // Caminho relativo — host resolvido no render (ver lib/mediaUrl.ts).
+      onUploaded(await uploadFile(file, file.name));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro no upload');
     } finally {
@@ -167,11 +167,19 @@ export function AdminMediaPanel({
   media,
   onMediaChange,
   onSave,
+  effectsFor,
 }: {
   media: SiteMedia;
   onMediaChange: (next: SiteMedia) => void;
   onSave: () => void;
+  /** Máscara/desfoque do campo. Ausente = campo só permite recorte. */
+  effectsFor?: (key: keyof SiteMedia) => ImageEffectsConfig | undefined;
 }) {
+  const [cropField, setCropField] = useState<{
+    key: keyof SiteMedia;
+    aspect?: string;
+  } | null>(null);
+
   const patch = (key: keyof SiteMedia, value: string) => {
     onMediaChange({ ...media, [key]: value });
   };
@@ -227,7 +235,7 @@ export function AdminMediaPanel({
                   {kind === 'image' ? (
                     url ? (
                       <img
-                        src={url}
+                        src={resolveMediaUrl(url)}
                         alt=""
                         className="max-w-full max-h-[220px] w-auto h-auto object-contain"
                         onError={(e) => {
@@ -243,7 +251,7 @@ export function AdminMediaPanel({
                   ) : url ? (
                     <video
                       key={url}
-                      src={url}
+                      src={resolveMediaUrl(url)}
                       muted
                       playsInline
                       controls
@@ -257,12 +265,34 @@ export function AdminMediaPanel({
                 </div>
                 {!url ? (
                   <p className="text-xs text-amber-600/90 mt-2">URL vazia</p>
+                ) : kind === 'image' ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCropField({ key, aspect: aspectFromDimension(dimension) })
+                    }
+                    className="mt-2 inline-flex items-center gap-1.5 self-start text-xs text-zinc-400 hover:text-eagle-gold transition-colors"
+                  >
+                    <Pencil size={12} />
+                    Editar imagem
+                  </button>
                 ) : null}
               </div>
             </div>
           );
         })}
       </div>
+
+      <ImageCropModal
+        open={cropField !== null}
+        value={cropField ? media[cropField.key] : ''}
+        aspect={cropField?.aspect}
+        effects={cropField ? effectsFor?.(cropField.key) : undefined}
+        onClose={() => setCropField(null)}
+        onCropped={(url) => {
+          if (cropField) patch(cropField.key, url);
+        }}
+      />
 
       <div className="flex justify-end pt-8 mt-8 border-t border-zinc-800/80">
         <button

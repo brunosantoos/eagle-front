@@ -11,6 +11,8 @@ import {
   Image as ImageIcon,
   Inbox,
   LogOut,
+  Cloud,
+  Mail,
   MapPin,
   PanelLeft,
   Plus,
@@ -34,6 +36,8 @@ import { defaultSiteContent, type HeroMediaType } from '../../lib/siteContent';
 import { AdminMediaPanel } from './AdminMediaPanel';
 import { ImageUploader } from '../../components/admin/ImageUploader';
 import { VideoUploader } from '../../components/admin/VideoUploader';
+import { AdminEmailPanel } from './AdminEmailPanel';
+import { AdminStoragePanel } from './AdminStoragePanel';
 import { AdminUsersPanel } from './AdminUsersPanel';
 import AdminLeadsPanel from './AdminLeadsPanel';
 
@@ -134,6 +138,48 @@ function ColorField({
   );
 }
 
+function SliderField({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 100,
+  step = 1,
+  suffix = '%',
+  hint,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  suffix?: string;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <label className={lbCls}>
+        {label}:{' '}
+        <span className="text-eagle-gold font-semibold">
+          {value}
+          {suffix}
+        </span>
+      </label>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-red-600"
+      />
+      {hint && <p className="text-[11px] text-zinc-500 mt-1">{hint}</p>}
+    </div>
+  );
+}
+
 function CardIconSelect({
   value,
   fallback,
@@ -175,6 +221,8 @@ type AdminSectionId =
   | 'franchise'
   | 'media'
   | 'users'
+  | 'email'
+  | 'storage'
   | 'leads';
 
 const CONTENT_SECTIONS: AdminSectionId[] = ['nav-footer', 'home', 'about', 'franchise', 'media'];
@@ -211,7 +259,7 @@ export default function AdminDashboard() {
 
   const allowedSections: AdminSectionId[] =
     role === 'admin'
-      ? ['nav-footer', 'home', 'about', 'franchise', 'media', 'users', 'leads']
+      ? ['nav-footer', 'home', 'about', 'franchise', 'media', 'users', 'email', 'storage', 'leads']
       : role === 'editor'
         ? CONTENT_SECTIONS
         : role === 'user'
@@ -226,7 +274,7 @@ export default function AdminDashboard() {
   );
   const [resetOpen, setResetOpen] = useState(false);
   const [homeTab, setHomeTab] = useState<'hero' | 'experience' | 'carousel' | 'teaser'>('hero');
-  const [navTab, setNavTab] = useState<'menu' | 'footer' | 'privacy'>('menu');
+  const [navTab, setNavTab] = useState<'menu' | 'footer' | 'privacy' | 'terms'>('menu');
   const [aboutTab, setAboutTab] = useState<'hero' | 'story' | 'pillars' | 'values'>('hero');
   const [franchiseTab, setFranchiseTab] = useState<'hero' | 'why' | 'support' | 'numbers' | 'form'>('hero');
 
@@ -306,6 +354,15 @@ export default function AdminDashboard() {
     setContent(
       (prev) => ({
         ...prev,
+        // Máscara/desfoque são editados dentro do modal "Editar imagem" da aba
+        // Mídias, então precisam ser publicados junto com as imagens.
+        mediaEffects: structuredClone(draft.mediaEffects),
+        home: { ...prev.home, secondHero: structuredClone(draft.home.secondHero) },
+        about: {
+          ...prev.about,
+          heroMaskEnabled: draft.about.heroMaskEnabled,
+          heroMaskOpacity: draft.about.heroMaskOpacity,
+        },
         media: structuredClone(draft.media),
       }),
       {
@@ -336,6 +393,8 @@ export default function AdminDashboard() {
       label: 'Administração',
       items: [
         { id: 'users', label: 'Usuários', icon: Users, description: 'Acessos do painel' },
+        { id: 'email', label: 'E-mail', icon: Mail, description: 'Envio automático dos formulários' },
+        { id: 'storage', label: 'Armazenamento', icon: Cloud, description: 'Onde as mídias são salvas' },
       ],
     },
   ];
@@ -510,9 +569,94 @@ export default function AdminDashboard() {
                   setDraft((d) => ({ ...d, media: m }))
                 }
                 onSave={saveMedia}
+                effectsFor={(key) => {
+                  // Imagens de conteúdo que o site renderiza com máscara/desfoque.
+                  const HINTS: Partial<Record<keyof typeof draft.media, string>> = {
+                    homeSecondHeroBg: 'Fundo do segundo bloco da Home, atrás do título principal.',
+                    homeExperienceImage: 'Imagem ao lado da lista de diferenciais, na Home.',
+                    homeFranchiseTeaserImage: 'Imagem do bloco de franquia no fim da Home.',
+                    aboutHeroBg: 'Foto do topo da página Sobre, atrás do título.',
+                    aboutStoryImage: 'Imagem ao lado do texto "Nossa história".',
+                    aboutPillarsImage: 'Imagem quadrada ao lado dos pilares da marca.',
+                  };
+                  const hint = HINTS[key];
+                  if (!hint) return undefined; // logos e vídeos: só recorte
+
+                  const effect = draft.mediaEffects[key] ?? {
+                    maskEnabled: false,
+                    maskOpacity: 40,
+                    blur: 0,
+                  };
+
+                  const writeEffect = (next: {
+                    maskEnabled: boolean;
+                    maskOpacity: number;
+                    blur: number;
+                  }) =>
+                    setDraft((d) => ({
+                      ...d,
+                      mediaEffects: { ...d.mediaEffects, [key]: next },
+                    }));
+
+                  // Estas duas imagens já tinham máscara própria na seção (Home > Hero
+                  // e Sobre > Hero). A máscara continua vindo de lá para não existirem
+                  // dois controles concorrentes; só o desfoque vai para mediaEffects.
+                  if (key === 'homeSecondHeroBg') {
+                    return {
+                      maskEnabled: draft.home.secondHero.overlayEnabled,
+                      maskOpacity: draft.home.secondHero.overlayOpacity,
+                      blur: effect.blur,
+                      hint,
+                      onChange: ({ maskEnabled, maskOpacity, blur }) => {
+                        setDraft((d) => ({
+                          ...d,
+                          home: {
+                            ...d.home,
+                            secondHero: {
+                              ...d.home.secondHero,
+                              overlayEnabled: maskEnabled,
+                              overlayOpacity: maskOpacity,
+                            },
+                          },
+                          mediaEffects: {
+                            ...d.mediaEffects,
+                            [key]: { maskEnabled: false, maskOpacity: 0, blur },
+                          },
+                        }));
+                      },
+                    };
+                  }
+
+                  if (key === 'aboutHeroBg') {
+                    return {
+                      maskEnabled: draft.about.heroMaskEnabled,
+                      maskOpacity: draft.about.heroMaskOpacity,
+                      blur: effect.blur,
+                      hint,
+                      onChange: ({ maskEnabled, maskOpacity, blur }) => {
+                        setDraft((d) => ({
+                          ...d,
+                          about: {
+                            ...d.about,
+                            heroMaskEnabled: maskEnabled,
+                            heroMaskOpacity: maskOpacity,
+                          },
+                          mediaEffects: {
+                            ...d.mediaEffects,
+                            [key]: { maskEnabled: false, maskOpacity: 0, blur },
+                          },
+                        }));
+                      },
+                    };
+                  }
+
+                  return { ...effect, hint, onChange: writeEffect };
+                }}
               />
             )}
             {active === 'users' && <AdminUsersPanel />}
+            {active === 'email' && <AdminEmailPanel />}
+            {active === 'storage' && <AdminStoragePanel />}
             {active === 'leads' && <AdminLeadsPanel />}
             {active === 'nav-footer' && (
               <Section
@@ -524,6 +668,7 @@ export default function AdminDashboard() {
                     { id: 'menu', label: 'Menu (navbar)', hint: 'Links do topo' },
                     { id: 'footer', label: 'Rodapé', hint: 'Tagline, colunas, contato' },
                     { id: 'privacy', label: 'Política de privacidade', hint: 'Página /privacidade' },
+                    { id: 'terms', label: 'Termos de uso', hint: 'Página /termos' },
                   ].map((t) => {
                     const on = navTab === t.id;
                     return (
@@ -766,6 +911,24 @@ export default function AdminDashboard() {
                       }
                     />
                   </div>
+                  <div className="md:col-span-2">
+                    <label className={lbCls}>Link do mapa (opcional)</label>
+                    <input
+                      className={inCls}
+                      placeholder="https://maps.app.goo.gl/..."
+                      value={draft.footer.mapsUrl}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          footer: { ...d.footer, mapsUrl: e.target.value },
+                        }))
+                      }
+                    />
+                    <p className="text-[11px] text-zinc-500 mt-1">
+                      Vazio: o endereço abre uma busca no Google Maps automaticamente.
+                      Campos de contato em branco não aparecem no rodapé.
+                    </p>
+                  </div>
                   <div>
                     <label className={lbCls}>Telefone</label>
                     <input
@@ -821,6 +984,35 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="pt-4 border-t border-zinc-800">
+                  <div className="grid md:grid-cols-2 gap-4 mb-5">
+                    <div>
+                      <label className={lbCls}>Redes sociais — título do bloco</label>
+                      <input
+                        className={inCls}
+                        value={draft.footer.socialTitle}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            footer: { ...d.footer, socialTitle: e.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className={lbCls}>Redes sociais — chamada</label>
+                      <input
+                        className={inCls}
+                        placeholder="Acesse nossa rede social e acompanhe nossas atualizações."
+                        value={draft.footer.socialDescription}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            footer: { ...d.footer, socialDescription: e.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-heading font-semibold text-eagle-light">Redes sociais</p>
@@ -945,6 +1137,37 @@ export default function AdminDashboard() {
                       setDraft((d) => ({
                         ...d,
                         privacyPolicy: { ...d.privacyPolicy, content: html },
+                      }))
+                    }
+                  />
+                </div>
+                </>)}
+
+                {navTab === 'terms' && (<>
+                <p className="text-xs text-zinc-500 -mt-1">
+                  Conteúdo exibido na página <span className="text-zinc-300">/termos</span>, acessível pelo link &quot;{draft.footer.terms}&quot; no rodapé do site.
+                </p>
+                <div>
+                  <label className={lbCls}>Título da página</label>
+                  <input
+                    className={inCls}
+                    value={draft.termsOfUse.title}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        termsOfUse: { ...d.termsOfUse, title: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={lbCls}>Texto dos termos</label>
+                  <RichTextEditor
+                    value={draft.termsOfUse.content}
+                    onChange={(html) =>
+                      setDraft((d) => ({
+                        ...d,
+                        termsOfUse: { ...d.termsOfUse, content: html },
                       }))
                     }
                   />
@@ -1628,6 +1851,110 @@ export default function AdminDashboard() {
                     }
                   />
                 </div>
+                <div className="pt-4 mt-2 border-t border-zinc-800 space-y-5">
+                  <div>
+                    <p className="text-sm font-heading font-semibold text-eagle-light">Aparência do carrossel</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Clareamento da foto, tamanho e cor dos textos dos cards.
+                    </p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <SliderField
+                      label="Véu branco sobre a foto do card"
+                      value={draft.home.carousel.cardOverlayOpacity}
+                      onChange={(v) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: { ...d.home, carousel: { ...d.home.carousel, cardOverlayOpacity: v } },
+                        }))
+                      }
+                      hint="0% = foto original. Valores altos deixam a imagem lavada."
+                    />
+                    <SliderField
+                      label="Degradê branco nas laterais"
+                      value={draft.home.carousel.sideFadeOpacity}
+                      onChange={(v) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: { ...d.home, carousel: { ...d.home.carousel, sideFadeOpacity: v } },
+                        }))
+                      }
+                      hint="Esfumaçado nas pontas do carrossel."
+                    />
+                    <SliderField
+                      label="Tamanho do título do card"
+                      value={draft.home.carousel.cardTitleFontSize}
+                      onChange={(v) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: { ...d.home, carousel: { ...d.home.carousel, cardTitleFontSize: v } },
+                        }))
+                      }
+                      min={12}
+                      max={72}
+                      suffix="px"
+                      hint="No celular o tamanho reduz automaticamente para não cortar o texto."
+                    />
+                    <SliderField
+                      label="Tamanho do label lateral"
+                      value={draft.home.carousel.cardLabelFontSize}
+                      onChange={(v) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: { ...d.home, carousel: { ...d.home.carousel, cardLabelFontSize: v } },
+                        }))
+                      }
+                      min={8}
+                      max={32}
+                      suffix="px"
+                    />
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <ColorField
+                      label="Cor do título da seção"
+                      value={draft.home.carousel.titleColor}
+                      onChange={(c) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: { ...d.home, carousel: { ...d.home.carousel, titleColor: c } },
+                        }))
+                      }
+                    />
+                    <ColorField
+                      label="Cor da nota de rodapé"
+                      value={draft.home.carousel.footnoteColor}
+                      onChange={(c) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: { ...d.home, carousel: { ...d.home.carousel, footnoteColor: c } },
+                        }))
+                      }
+                    />
+                    <ColorField
+                      label="Cor do título dos cards"
+                      value={draft.home.carousel.cardTitleColor}
+                      onChange={(c) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: { ...d.home, carousel: { ...d.home.carousel, cardTitleColor: c } },
+                        }))
+                      }
+                    />
+                    <ColorField
+                      label="Cor do label dos cards"
+                      value={draft.home.carousel.cardLabelColor}
+                      onChange={(c) =>
+                        setDraft((d) => ({
+                          ...d,
+                          home: { ...d.home, carousel: { ...d.home.carousel, cardLabelColor: c } },
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between gap-3 pt-2">
                   <p className="text-xs text-zinc-500">
                     Cards exibidos: <span className="text-zinc-300 font-semibold">{draft.home.workouts.length}</span>
@@ -1880,6 +2207,45 @@ export default function AdminDashboard() {
                     }
                   />
                 </div>
+
+                <div className="pt-4 border-t border-zinc-800 space-y-3">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={draft.about.heroMaskEnabled}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          about: { ...d.about, heroMaskEnabled: e.target.checked },
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-zinc-600 bg-eagle-black accent-red-600"
+                    />
+                    <span className="text-sm text-zinc-300">
+                      Aplicar máscara escura sobre a foto do hero
+                    </span>
+                  </label>
+                  {draft.about.heroMaskEnabled ? (
+                    <div className="max-w-sm">
+                      <SliderField
+                        label="Intensidade da máscara"
+                        value={draft.about.heroMaskOpacity}
+                        onChange={(v) =>
+                          setDraft((d) => ({
+                            ...d,
+                            about: { ...d.about, heroMaskOpacity: v },
+                          }))
+                        }
+                        step={5}
+                        hint="0% = foto original · 100% = quase preta. Se a foto está escura demais, reduza aqui."
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-zinc-500">
+                      Sem máscara a foto aparece em cor cheia — confira o contraste do título.
+                    </p>
+                  )}
+                </div>
                 </>)}
 
                 {aboutTab === 'story' && (<>
@@ -1917,6 +2283,22 @@ export default function AdminDashboard() {
                 </>)}
 
                 {aboutTab === 'pillars' && (<>
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={draft.about.pillarsMaskEnabled}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        about: { ...d.about, pillarsMaskEnabled: e.target.checked },
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-zinc-600 bg-eagle-black accent-red-600"
+                  />
+                  <span className="text-sm text-zinc-300">
+                    Aplicar sombra escura na base da foto dos pilares
+                  </span>
+                </label>
                 <div>
                   <label className={lbCls}>Pilares — título da seção</label>
                   <input

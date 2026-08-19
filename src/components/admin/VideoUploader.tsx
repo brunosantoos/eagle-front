@@ -1,9 +1,8 @@
 /// <reference types="vite/client" />
 import { useRef, useState } from 'react';
 import { Loader2, Upload, Video } from 'lucide-react';
-
-const BACKEND_URL =
-  (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? 'http://localhost:3001';
+import { resolveMediaUrl } from '../../lib/mediaUrl';
+import { uploadFile } from '../../lib/upload';
 
 export function VideoUploader({
   value,
@@ -33,16 +32,8 @@ export function VideoUploader({
     setUploading(true);
     setError(null);
     try {
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch(`${BACKEND_URL}/api/upload`, {
-        method: 'POST',
-        body: form,
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error(`Falha no upload (${res.status})`);
-      const data = (await res.json()) as { url: string };
-      onChange(`${BACKEND_URL}${data.url}`);
+      // Grava caminho relativo — o host entra no render (ver lib/mediaUrl.ts).
+      onChange(await uploadFile(file, file.name));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro no upload.');
     } finally {
@@ -64,7 +55,7 @@ export function VideoUploader({
         {value ? (
           <video
             key={value}
-            src={value}
+            src={resolveMediaUrl(value)}
             muted
             playsInline
             controls

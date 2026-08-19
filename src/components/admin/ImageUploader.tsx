@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 import { useRef, useState } from 'react';
-import { ImageIcon, Loader2, Upload } from 'lucide-react';
-
-const BACKEND_URL =
-  (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? 'http://localhost:3001';
+import { ImageIcon, Loader2, Pencil, Upload } from 'lucide-react';
+import { resolveMediaUrl } from '../../lib/mediaUrl';
+import { uploadFile } from '../../lib/upload';
+import { ImageCropModal, type ImageEffectsConfig } from './ImageCropModal';
 
 export function ImageUploader({
   value,
@@ -12,6 +12,7 @@ export function ImageUploader({
   aspect = '16/9',
   maxWidth = '220px',
   hint,
+  effects,
 }: {
   value: string;
   onChange: (url: string) => void;
@@ -20,10 +21,13 @@ export function ImageUploader({
   maxWidth?: string;
   /** Texto auxiliar exibido sob o label (ex.: dimensão recomendada). */
   hint?: string;
+  /** Máscara e desfoque do campo, editáveis no modal. Ausente = só recorte. */
+  effects?: ImageEffectsConfig;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const handlePick = () => inputRef.current?.click();
 
@@ -35,16 +39,8 @@ export function ImageUploader({
     setUploading(true);
     setError(null);
     try {
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch(`${BACKEND_URL}/api/upload`, {
-        method: 'POST',
-        body: form,
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error(`Falha no upload (${res.status})`);
-      const data = (await res.json()) as { url: string };
-      onChange(`${BACKEND_URL}${data.url}`);
+      // Grava caminho relativo — o host entra no render (ver lib/mediaUrl.ts).
+      onChange(await uploadFile(file, file.name));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro no upload.');
     } finally {
@@ -65,7 +61,7 @@ export function ImageUploader({
       >
         {value ? (
           <img
-            src={value}
+            src={resolveMediaUrl(value)}
             alt=""
             className="w-full h-full object-cover"
             onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.35'; }}
@@ -106,16 +102,36 @@ export function ImageUploader({
         }}
       />
       {!uploading && (
-        <button
-          type="button"
-          onClick={handlePick}
-          className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-eagle-gold transition-colors"
-        >
-          <Upload size={12} />
-          {value ? 'Enviar outra imagem' : 'Enviar arquivo'}
-        </button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <button
+            type="button"
+            onClick={handlePick}
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-eagle-gold transition-colors"
+          >
+            <Upload size={12} />
+            {value ? 'Enviar outra imagem' : 'Enviar arquivo'}
+          </button>
+          {value && (
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-eagle-gold transition-colors"
+            >
+              <Pencil size={12} />
+              Editar imagem
+            </button>
+          )}
+        </div>
       )}
       {error && <p className="text-[11px] text-red-400">{error}</p>}
+      <ImageCropModal
+        open={editOpen}
+        value={value}
+        aspect={aspect}
+        effects={effects}
+        onClose={() => setEditOpen(false)}
+        onCropped={(url) => onChange(url)}
+      />
     </div>
   );
 }
