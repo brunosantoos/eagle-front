@@ -12,6 +12,8 @@ import { Button } from "../components/ui/Button";
 import { useSiteContent } from "../context/SiteContentProvider";
 import { useToast } from "../context/ToastProvider";
 import { resolveCardIcon } from "../lib/cardIcons";
+import { resolveMediaUrl } from "../lib/mediaUrl";
+import { formatPhone } from "../lib/phone";
 import { trpc } from "../lib/trpc";
 
 const whyIcons = [TrendingUp, Building2, Handshake] as const;
@@ -58,7 +60,11 @@ export default function Franchise() {
         email: formData.email,
         phone: formData.phone,
         city: formData.city,
-        capital: formData.capital,
+        // Envia o rótulo legível ("R$ 1.5M a R$ 2.0M") em vez da chave interna —
+        // é o que aparece no kanban e no e-mail para a equipe.
+        capital:
+          f.capitalOptions.find((opt) => opt.value === formData.capital)?.label ??
+          formData.capital,
       });
       success(f.formSuccessMessage);
       setFormData({ name: '', email: '', phone: '', capital: '', city: '' });
@@ -70,7 +76,11 @@ export default function Franchise() {
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: name === 'phone' ? formatPhone(value) : value,
+    });
   };
 
   return (
@@ -118,7 +128,7 @@ export default function Franchise() {
               <video
                 key={content.media.franchiseHeroVideo}
                 className="w-full h-full object-cover"
-                src={content.media.franchiseHeroVideo}
+                src={resolveMediaUrl(content.media.franchiseHeroVideo)}
                 autoPlay
                 loop
                 playsInline
@@ -299,6 +309,9 @@ export default function Franchise() {
                   id="phone"
                   name="phone"
                   required
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  maxLength={15}
                   value={formData.phone}
                   onChange={handleChange}
                   className="w-full bg-eagle-dark border border-eagle-gray rounded-xl shadow-inner px-4 py-3 text-eagle-light focus:outline-none focus:border-eagle-red focus:ring-1 focus:ring-eagle-red transition-all"

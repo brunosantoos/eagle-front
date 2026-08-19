@@ -1,13 +1,33 @@
 import { useSiteContent } from "@/src/context/SiteContentProvider";
 import { cn } from "@/src/lib/utils";
 import { resolveSocialIcon, resolveSocialLabel } from "@/src/lib/socialIcons";
+import { resolveMediaUrl } from "@/src/lib/mediaUrl";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+
+/** Só dígitos e '+' — formato aceito por tel:. */
+function telHref(phone: string) {
+  return `tel:${phone.replace(/[^+\d]/g, '')}`;
+}
+
+/**
+ * Link do mapa: usa a URL configurada no Admin ou, se vazia, monta uma busca
+ * no Google Maps com o endereço — funciona em iOS, Android e desktop.
+ */
+function mapsHref(mapsUrl: string, line1: string, line2: string) {
+  if (mapsUrl.trim()) return mapsUrl.trim();
+  const query = [line1, line2].filter(Boolean).join(', ');
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
 
 export function Footer() {
   const { content } = useSiteContent();
   const location = useLocation();
   const isHome = location.pathname === "/";
+  // Link vazio não vira ícone no site — é assim que se "esconde" uma rede.
+  const socialLinks = content.footer.socialLinks.filter((s) => s.url.trim() !== "");
+  const { addressLine1, addressLine2, phone, email, mapsUrl } = content.footer;
+  const hasAddress = Boolean(addressLine1.trim() || addressLine2.trim());
 
   return (
     <footer
@@ -27,7 +47,7 @@ export function Footer() {
           <div className="col-span-1 md:col-span-1 ">
             <Link to="/" className="flex items-center gap-2 mb-6 ">
               <img
-                src={content.media.footerLogo}
+                src={resolveMediaUrl(content.media.footerLogo)}
                 alt="Logo"
                 className="w-24 mx-auto"
               />
@@ -36,25 +56,40 @@ export function Footer() {
               className="text-eagle-muted text-sm leading-relaxed mb-6"
               dangerouslySetInnerHTML={{ __html: content.footer.tagline }}
             />
-            <div className="flex gap-4">
-              {content.footer.socialLinks
-                .filter((s) => s.url.trim() !== "")
-                .map((s, i) => {
-                  const Icon = resolveSocialIcon(s.platform);
-                  return (
-                    <a
-                      key={i}
-                      href={s.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={resolveSocialLabel(s.platform)}
-                      className="text-eagle-muted hover:text-eagle-red transition-colors"
-                    >
-                      <Icon size={20} />
-                    </a>
-                  );
-                })}
-            </div>
+            {socialLinks.length > 0 && (
+              <div>
+                {content.footer.socialTitle && (
+                  <h4 className="font-heading font-semibold text-eagle-light mb-2 uppercase tracking-wider text-xs">
+                    {content.footer.socialTitle}
+                  </h4>
+                )}
+                {content.footer.socialDescription && (
+                  <p className="text-eagle-muted text-xs leading-relaxed mb-3">
+                    {content.footer.socialDescription}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2.5">
+                  {socialLinks.map((s, i) => {
+                    const Icon = resolveSocialIcon(s.platform);
+                    const label = resolveSocialLabel(s.platform);
+                    return (
+                      <a
+                        key={i}
+                        href={s.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={label}
+                        title={label}
+                        className="inline-flex items-center gap-2 rounded-xl border border-eagle-gray/70 bg-white/5 px-3 py-2 text-xs font-medium text-eagle-light hover:border-eagle-red hover:bg-eagle-red hover:text-white transition-colors"
+                      >
+                        <Icon size={18} />
+                        <span>{label}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Links */}
@@ -129,22 +164,48 @@ export function Footer() {
               {content.footer.contactTitle}
             </h4>
             <ul className="space-y-4">
-              <li className="flex items-start gap-3 text-eagle-muted text-sm">
-                <MapPin size={18} className="text-eagle-gold shrink-0 mt-0.5" />
-                <span>
-                  {content.footer.addressLine1}
-                  <br />
-                  {content.footer.addressLine2}
-                </span>
-              </li>
-              <li className="flex items-center gap-3 text-eagle-muted text-sm">
-                <Phone size={18} className="text-eagle-gold shrink-0" />
-                <span>{content.footer.phone}</span>
-              </li>
-              <li className="flex items-center gap-3 text-eagle-muted text-sm">
-                <Mail size={18} className="text-eagle-gold shrink-0" />
-                <span>{content.footer.email}</span>
-              </li>
+              {hasAddress && (
+                <li>
+                  <a
+                    href={mapsHref(mapsUrl, addressLine1, addressLine2)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Abrir endereço no mapa"
+                    className="flex items-start gap-3 text-eagle-muted hover:text-eagle-red transition-colors text-sm"
+                  >
+                    <MapPin size={18} className="text-eagle-gold shrink-0 mt-0.5" />
+                    <span>
+                      {addressLine1}
+                      {addressLine1 && addressLine2 && <br />}
+                      {addressLine2}
+                    </span>
+                  </a>
+                </li>
+              )}
+              {phone.trim() && (
+                <li>
+                  <a
+                    href={telHref(phone)}
+                    aria-label={`Ligar para ${phone}`}
+                    className="flex items-center gap-3 text-eagle-muted hover:text-eagle-red transition-colors text-sm"
+                  >
+                    <Phone size={18} className="text-eagle-gold shrink-0" />
+                    <span>{phone}</span>
+                  </a>
+                </li>
+              )}
+              {email.trim() && (
+                <li>
+                  <a
+                    href={`mailto:${email.trim()}`}
+                    aria-label={`Enviar e-mail para ${email}`}
+                    className="flex items-center gap-3 text-eagle-muted hover:text-eagle-red transition-colors text-sm break-all"
+                  >
+                    <Mail size={18} className="text-eagle-gold shrink-0" />
+                    <span>{email}</span>
+                  </a>
+                </li>
+              )}
             </ul>
           </div>
         </div>
@@ -155,12 +216,12 @@ export function Footer() {
             os direitos reservados.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            <a
-              href="#"
+            <Link
+              to="/termos"
               className="text-eagle-muted hover:text-eagle-light text-xs transition-colors"
             >
               {content.footer.terms}
-            </a>
+            </Link>
             <Link
               to="/privacidade"
               className="text-eagle-muted hover:text-eagle-light text-xs transition-colors"

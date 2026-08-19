@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { useSiteContent } from "../context/SiteContentProvider";
+import { resolveMediaUrl } from "../lib/mediaUrl";
+import { blurStyle, getMediaEffect, MediaMask } from "../lib/mediaEffects";
 
 function HeroImageCarousel({ images }: { images: string[] }) {
   const [index, setIndex] = useState(0);
@@ -22,7 +24,7 @@ function HeroImageCarousel({ images }: { images: string[] }) {
       {images.map((src, i) => (
         <img
           key={`${src}-${i}`}
-          src={src}
+          src={resolveMediaUrl(src)}
           alt=""
           referrerPolicy="no-referrer"
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
@@ -71,6 +73,11 @@ export default function Home() {
     [heroMedia.carouselImages],
   );
   const secondHero = content.home.secondHero;
+  const carousel = content.home.carousel;
+  const secondHeroEffect = getMediaEffect(content, 'homeSecondHeroBg');
+  const experienceEffect = getMediaEffect(content, 'homeExperienceImage');
+  const teaserEffect = getMediaEffect(content, 'homeFranchiseTeaserImage');
+  const clampPct = (n: number) => Math.min(100, Math.max(0, n)) / 100;
   const secondHeroAlign = SECOND_HERO_ALIGN[secondHero.textAlign] ?? SECOND_HERO_ALIGN.center;
 
   // Triple the items for infinite loop
@@ -133,7 +140,7 @@ export default function Home() {
         <div className="absolute inset-0 z-0">
           {heroMedia.type === "image" && heroImageUrl ? (
             <img
-              src={heroImageUrl}
+              src={resolveMediaUrl(heroImageUrl)}
               alt=""
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
@@ -149,7 +156,7 @@ export default function Home() {
               playsInline
               className="w-full h-full object-cover"
             >
-              <source src={heroVideoUrl} type="video/mp4" />
+              <source src={resolveMediaUrl(heroVideoUrl)} type="video/mp4" />
             </video>
           )}
           {/* Overlay gradient to ensure text readability */}
@@ -166,15 +173,17 @@ export default function Home() {
         {/* Background Image — corte, posição e máscara configuráveis no Admin */}
         <div className="absolute inset-0 z-0">
           <img
-            src={content.media.homeSecondHeroBg}
+            src={resolveMediaUrl(content.media.homeSecondHeroBg)}
             alt="Premium Gym Interior"
             className="w-full h-full"
             style={{
               objectFit: secondHero.objectFit,
               objectPosition: secondHero.objectPosition,
+              ...blurStyle(secondHeroEffect),
             }}
             referrerPolicy="no-referrer"
           />
+          <MediaMask effect={secondHeroEffect} />
           {secondHero.overlayEnabled && (
             <div
               className="absolute inset-0 bg-eagle-black"
@@ -289,11 +298,13 @@ export default function Home() {
               className="relative h-[600px] rounded-3xl shadow-2xl overflow-hidden"
             >
               <img
-                src={content.media.homeExperienceImage}
+                src={resolveMediaUrl(content.media.homeExperienceImage)}
                 alt="Personal Trainer guiding client"
                 className="w-full h-full object-cover"
+                style={blurStyle(experienceEffect)}
                 referrerPolicy="no-referrer"
               />
+              <MediaMask effect={experienceEffect} />
               <div className="absolute inset-0 border border-eagle-gold/30 m-6 rounded-3xl pointer-events-none"></div>
             </motion.div>
           </div>
@@ -304,18 +315,30 @@ export default function Home() {
       <section className="py-32 bg-white relative overflow-hidden">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-4xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-vonique font-bold mb-4 text-eagle-black uppercase tracking-tight">
-              {content.home.carousel.title}
+            <h2
+              className="text-3xl md:text-4xl font-vonique font-bold mb-4 text-eagle-black uppercase tracking-tight"
+              style={carousel.titleColor ? { color: carousel.titleColor } : undefined}
+            >
+              {carousel.title}
             </h2>
-            <p className="text-gray-500 text-sm italic">
-              {content.home.carousel.footnote}
+            <p
+              className="text-gray-500 text-sm italic"
+              style={carousel.footnoteColor ? { color: carousel.footnoteColor } : undefined}
+            >
+              {carousel.footnote}
             </p>
           </div>
 
           <div className="relative group max-w-[1400px] mx-auto">
             {/* Side Fade Overlays - Increased for more prominence */}
-            <div className="absolute left-0 top-0 bottom-12 w-64 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
-            <div className="absolute right-0 top-0 bottom-12 w-64 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
+            <div
+              className="absolute left-0 top-0 bottom-12 w-64 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"
+              style={{ opacity: clampPct(carousel.sideFadeOpacity) }}
+            ></div>
+            <div
+              className="absolute right-0 top-0 bottom-12 w-64 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none"
+              style={{ opacity: clampPct(carousel.sideFadeOpacity) }}
+            ></div>
 
             {/* Scroll Container */}
             <div
@@ -328,24 +351,42 @@ export default function Home() {
                   className="min-w-[280px] md:min-w-[380px] h-[480px] snap-center relative rounded-[2.5rem] shadow-xl overflow-hidden group/card border border-transparent hover:border-eagle-red/30 transition-all duration-500"
                 >
                   <img
-                    src={workout.img}
+                    src={resolveMediaUrl(workout.img)}
                     alt={workout.title}
                     className="w-full h-full object-cover transition-transform duration-1000 group-hover/card:scale-105"
                     referrerPolicy="no-referrer"
                   />
                   {/* Gradients */}
-                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent"></div>
+                  <div
+                    className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white to-transparent"
+                    style={{ opacity: clampPct(carousel.cardOverlayOpacity) }}
+                  ></div>
                   <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
 
                   {/* Content Container */}
                   <div className="absolute bottom-0 left-0 w-full p-8 flex items-end">
                     <div className="flex items-center gap-4">
                       {/* Vertical Label */}
-                      <span className="[writing-mode:vertical-rl] rotate-180 text-[11px] md:text-[12px] font-sans font-bold uppercase tracking-[0.3em] text-white/90 border-r-2 border-white/30 pr-3 leading-none">
+                      <span
+                        className="[writing-mode:vertical-rl] rotate-180 font-sans font-bold uppercase tracking-[0.3em] text-white/90 border-r-2 border-white/30 pr-3 leading-none"
+                        style={{
+                          fontSize: `${Math.min(32, Math.max(8, carousel.cardLabelFontSize))}px`,
+                          ...(carousel.cardLabelColor ? { color: carousel.cardLabelColor } : {}),
+                        }}
+                      >
                         {workout.label}
                       </span>
                       {/* Main Title */}
-                      <h3 className="text-xl md:text-4xl font-vonique font-bold text-white leading-[1.1] break-words max-w-[200px] md:max-w-[280px]">
+                      <h3
+                        className="font-vonique font-bold text-white leading-[1.1] break-words max-w-[200px] md:max-w-[280px]"
+                        style={{
+                          // clamp evita que um tamanho alto corte o texto no mobile
+                          fontSize: `clamp(${Math.round(
+                            Math.min(72, Math.max(12, carousel.cardTitleFontSize)) * 0.6,
+                          )}px, 5vw, ${Math.min(72, Math.max(12, carousel.cardTitleFontSize))}px)`,
+                          ...(carousel.cardTitleColor ? { color: carousel.cardTitleColor } : {}),
+                        }}
+                      >
                         {workout.title}
                       </h3>
                     </div>
@@ -389,11 +430,13 @@ export default function Home() {
             {/* Left: Static Banner (735x791 aspect ratio) */}
             <div className="relative w-full aspect-[735/791] rounded-3xl overflow-hidden shadow-2xl border border-eagle-gray">
               <img
-                src={content.media.homeFranchiseTeaserImage}
+                src={resolveMediaUrl(content.media.homeFranchiseTeaserImage)}
                 alt="Franquia Eagle Center"
                 className="w-full h-full object-cover"
+                style={blurStyle(teaserEffect)}
                 referrerPolicy="no-referrer"
               />
+              <MediaMask effect={teaserEffect} />
               <div className="absolute inset-0 bg-gradient-to-t from-eagle-black/80 via-transparent to-transparent"></div>
             </div>
 

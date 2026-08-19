@@ -1,5 +1,6 @@
 import { useSiteContent } from "@/src/context/SiteContentProvider";
 import { cn } from "@/src/lib/utils";
+import { resolveMediaUrl } from "@/src/lib/mediaUrl";
 import { Menu, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -47,9 +48,9 @@ export function Navbar() {
             !isScrolled && "opacity-100", // Logo is always visible now
           )}
         >
-          <img src={content.media.navLogo} alt="Logo" className="w-20" />
+          <img src={resolveMediaUrl(content.media.navLogo)} alt="Logo" className="w-20" />
           <img
-            src={content.media.navEagle}
+            src={resolveMediaUrl(content.media.navEagle)}
             alt="Logo"
             className="w-36 sm:w-44 md:w-48 lg:w-52"
           />

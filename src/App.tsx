@@ -14,6 +14,7 @@ const Home = lazy(() => import('./pages/Home'));
 const Franchise = lazy(() => import('./pages/Franchise'));
 const About = lazy(() => import('./pages/About'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfUse = lazy(() => import('./pages/TermsOfUse'));
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 
@@ -54,6 +55,7 @@ export default function App() {
                       <Route path="franquia" element={<Franchise />} />
                       <Route path="sobre" element={<About />} />
                       <Route path="privacidade" element={<PrivacyPolicy />} />
+                      <Route path="termos" element={<TermsOfUse />} />
                     </Route>
                   </Routes>
                 </Suspense>

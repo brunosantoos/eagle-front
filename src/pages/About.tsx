@@ -4,6 +4,9 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useSiteContent } from "../context/SiteContentProvider";
 import { useToast } from "../context/ToastProvider";
 import { trpc } from "../lib/trpc";
+import { resolveMediaUrl } from "../lib/mediaUrl";
+import { formatPhone } from "../lib/phone";
+import { blurStyle, getMediaEffect, MediaMask } from "../lib/mediaEffects";
 
 function ContactForm() {
   const { success, error } = useToast();
@@ -42,7 +45,16 @@ function ContactForm() {
       </div>
       <div>
         <label className="block text-xs font-medium text-zinc-400 mb-1.5">Telefone</label>
-        <input className={inp} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="(00) 00000-0000" />
+        <input
+          className={inp}
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel"
+          maxLength={15}
+          value={form.phone}
+          onChange={e => setForm(p => ({ ...p, phone: formatPhone(e.target.value) }))}
+          placeholder="(00) 00000-0000"
+        />
       </div>
       <div>
         <label className="block text-xs font-medium text-zinc-400 mb-1.5">Mensagem *</label>
@@ -61,6 +73,11 @@ function ContactForm() {
 
 export default function About() {
   const { content } = useSiteContent();
+  const maskOpacity =
+    Math.min(100, Math.max(0, content.about.heroMaskOpacity)) / 100;
+  const heroEffect = getMediaEffect(content, 'aboutHeroBg');
+  const storyEffect = getMediaEffect(content, 'aboutStoryImage');
+  const pillarsEffect = getMediaEffect(content, 'aboutPillarsImage');
 
   const valueBlocks = useMemo(
     () => [
@@ -89,12 +106,20 @@ export default function About() {
       <section className="relative px-6 flex items-center justify-center min-h-[60vh] overflow-hidden bg-eagle-black pt-32 pb-24 border-b border-eagle-gray">
         <div className="absolute inset-0 z-0">
           <img
-            src={content.media.aboutHeroBg}
+            src={resolveMediaUrl(content.media.aboutHeroBg)}
             alt="Eagle Center Fitness Environment"
-            className="w-full h-full object-cover opacity-60"
+            className="w-full h-full object-cover"
+            style={blurStyle(heroEffect)}
             referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-eagle-black"></div>
+          <MediaMask effect={heroEffect} />
+          {/* Máscara opcional — sem ela a foto aparece em cor cheia (Admin > Sobre > Hero). */}
+          {content.about.heroMaskEnabled && (
+            <div
+              className="absolute inset-0 bg-gradient-to-b from-black via-black/60 to-eagle-black"
+              style={{ opacity: maskOpacity }}
+            ></div>
+          )}
         </div>
 
         <div className="container mx-auto relative z-10 text-center">
@@ -132,12 +157,16 @@ export default function About() {
               </div>
             </motion.div>
 
-            <img
-              src={content.media.aboutStoryImage}
-              alt="Premium Gym Environment"
-              className="w-full  "
-              referrerPolicy="no-referrer"
-            />
+            <div className="relative">
+              <img
+                src={resolveMediaUrl(content.media.aboutStoryImage)}
+                alt="Premium Gym Environment"
+                className="w-full"
+                style={blurStyle(storyEffect)}
+                referrerPolicy="no-referrer"
+              />
+              <MediaMask effect={storyEffect} />
+            </div>
           </div>
         </div>
       </section>
@@ -167,12 +196,16 @@ export default function About() {
             <div className="order-1 lg:order-2 flex justify-center lg:justify-end">
               <div className="relative w-full max-w-[600px] aspect-square rounded-[3rem] overflow-hidden shadow-2xl border-4 border-gray-100">
                 <img
-                  src={content.media.aboutPillarsImage}
+                  src={resolveMediaUrl(content.media.aboutPillarsImage)}
                   alt="Pilares da Marca Eagle Center"
                   className="w-full h-full object-cover"
+                  style={blurStyle(pillarsEffect)}
                   referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                <MediaMask effect={pillarsEffect} />
+                {content.about.pillarsMaskEnabled && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                )}
               </div>
             </div>
           </div>

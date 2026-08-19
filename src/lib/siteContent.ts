@@ -53,9 +53,44 @@ export type SocialLink = {
   url: string;
 };
 
+export type CarouselConfig = {
+  title: string;
+  footnote: string;
+  /** Cores em hex. '' = cor padrão do site. */
+  titleColor: string;
+  footnoteColor: string;
+  cardTitleColor: string;
+  cardLabelColor: string;
+  /** Tamanho da fonte dos cards em px (desktop). */
+  cardTitleFontSize: number;
+  cardLabelFontSize: number;
+  /** 0–100. Véu branco no topo do card — valores altos "lavam" a foto. */
+  cardOverlayOpacity: number;
+  /** 0–100. Intensidade do degradê branco nas laterais do carrossel. */
+  sideFadeOpacity: number;
+};
+
 export type BusinessNumber = {
   label: string;
   value: string;
+};
+
+/**
+ * Efeitos aplicados sobre uma imagem no site — máscara escura e desfoque.
+ * Não alteram o arquivo: são camada/filtro no render, reversíveis a qualquer hora.
+ */
+export type MediaEffect = {
+  maskEnabled: boolean;
+  /** 0–100. Intensidade da máscara escura. */
+  maskOpacity: number;
+  /** 0–20 px de desfoque. 0 = sem blur. */
+  blur: number;
+};
+
+export const DEFAULT_MEDIA_EFFECT: MediaEffect = {
+  maskEnabled: false,
+  maskOpacity: 40,
+  blur: 0,
 };
 
 export type SiteMedia = {
@@ -87,6 +122,11 @@ export type SiteMedia = {
 
 export type SiteContent = {
   media: SiteMedia;
+  /**
+   * Efeitos por imagem, com a mesma chave de `media` (ex.: `aboutHeroBg`).
+   * Chave ausente = sem efeito (ver DEFAULT_MEDIA_EFFECT).
+   */
+  mediaEffects: Record<string, MediaEffect>;
   nav: {
     home: string;
     about: string;
@@ -94,6 +134,12 @@ export type SiteContent = {
   };
   /** Página /privacidade — editada no Admin em "Menu e rodapé". */
   privacyPolicy: {
+    title: string;
+    /** HTML do editor rich text. */
+    content: string;
+  };
+  /** Página /termos — editada no Admin em "Menu e rodapé". */
+  termsOfUse: {
     title: string;
     /** HTML do editor rich text. */
     content: string;
@@ -116,6 +162,12 @@ export type SiteContent = {
     franchiseLink1: string;
     franchiseLink2: string;
     franchiseLink3: string;
+    /** Título do bloco de redes sociais no rodapé. */
+    socialTitle: string;
+    /** Chamada acima dos ícones de rede social. '' = não exibe. */
+    socialDescription: string;
+    /** Link do mapa. '' = gera busca no Google Maps a partir do endereço. */
+    mapsUrl: string;
     socialLinks: SocialLink[];
   };
   home: {
@@ -133,10 +185,7 @@ export type SiteContent = {
       body: string;
       bullets: string[];
     };
-    carousel: {
-      title: string;
-      footnote: string;
-    };
+    carousel: CarouselConfig;
     workouts: WorkoutCard[];
     franchiseTeaser: {
       eyebrow: string;
@@ -152,6 +201,12 @@ export type SiteContent = {
     storyParagraphs: string[];
     /** Cor do título do hero. '' = padrão (branco). */
     heroTitleColor: string;
+    /** Máscara escura sobre a foto do hero. */
+    heroMaskEnabled: boolean;
+    /** 0–100. Intensidade da máscara do hero. */
+    heroMaskOpacity: number;
+    /** Máscara escura sobre a foto dos pilares. */
+    pillarsMaskEnabled: boolean;
     pillarsTitle: string;
     pillarsIntro: string;
     pillarsHeadline: string;
@@ -219,6 +274,7 @@ export const defaultSiteContent: SiteContent = {
       'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=2070&auto=format&fit=crop',
     franchiseHeroVideo: '/franquia.mp4',
   },
+  mediaEffects: {},
   nav: {
     home: 'Home',
     about: 'Sobre Nós',
@@ -228,6 +284,11 @@ export const defaultSiteContent: SiteContent = {
     title: 'Política de Privacidade',
     content:
       '<p>A Eagle Center Fitness respeita a sua privacidade e protege os seus dados pessoais conforme a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).</p><p>Os dados enviados pelos formulários deste site (nome, e-mail, telefone, cidade e capital disponível) são usados exclusivamente para contato comercial sobre franquias e atendimento, e não são compartilhados com terceiros.</p><p>Para solicitar acesso, correção ou exclusão dos seus dados, entre em contato pelos canais informados no rodapé do site.</p>',
+  },
+  termsOfUse: {
+    title: 'Termos de Uso',
+    content:
+      '<p>Este site é mantido pela Eagle Center Fitness para apresentar a marca, as unidades e o modelo de franquia.</p><p>As informações de investimento, faturamento e retorno são estimativas médias e podem variar conforme região, tamanho da unidade e condições de mercado — não constituem promessa de resultado.</p><p>Os textos, imagens, marcas e vídeos deste site pertencem à Eagle Center Fitness e não podem ser reproduzidos sem autorização.</p><p>Ao enviar um formulário, você autoriza o contato da nossa equipe pelos dados informados, conforme a nossa Política de Privacidade.</p>',
   },
   footer: {
     tagline:
@@ -248,6 +309,10 @@ export const defaultSiteContent: SiteContent = {
     franchiseLink1: 'Modelo de Negócio',
     franchiseLink2: 'Suporte ao Franqueado',
     franchiseLink3: 'Investimento',
+    socialTitle: 'Nossas redes',
+    socialDescription:
+      'Acesse nossa rede social e acompanhe nossas atualizações.',
+    mapsUrl: '',
     socialLinks: [
       { platform: 'instagram', url: '' },
       { platform: 'linkedin', url: '' },
@@ -290,8 +355,16 @@ export const defaultSiteContent: SiteContent = {
       ],
     },
     carousel: {
-      title: 'O treino que voce procura, aqui tem.',
+      title: 'O treino que você procura, aqui tem.',
       footnote: '*Verifique a disponibilidade na unidade de sua preferência.',
+      titleColor: '',
+      footnoteColor: '',
+      cardTitleColor: '',
+      cardLabelColor: '',
+      cardTitleFontSize: 36,
+      cardLabelFontSize: 12,
+      cardOverlayOpacity: 15,
+      sideFadeOpacity: 45,
     },
     workouts: [
       {
@@ -336,7 +409,10 @@ export const defaultSiteContent: SiteContent = {
   about: {
     heroTitle: 'UMA MARCA CRIADA COM SUOR, SONHO E RESULTADO.',
     heroTitleColor: '',
-    storyTitle: 'Nossa Historia',
+    heroMaskEnabled: true,
+    heroMaskOpacity: 40,
+    pillarsMaskEnabled: true,
+    storyTitle: 'Nossa História',
     storyParagraphs: [
       'A Eagle Center Fitness nasceu da insatisfação com o modelo tradicional de academias. Observamos um mercado saturado de espaços lotados, atendimento impessoal e foco exclusivo em volume de matrículas.',
       'Decidimos criar um refúgio. Um espaço onde o design, a tecnologia e o atendimento humano se encontram para proporcionar uma experiência de treino verdadeiramente premium. Não vendemos acesso a equipamentos; entregamos saúde, conforto e exclusividade.',
@@ -474,6 +550,30 @@ export function mergeSiteContent(
     }
   }
   deepMerge(out as Record<string, unknown>, stored as Record<string, unknown>);
+
+  // `mediaEffects` é um mapa livre: o deepMerge só copia chave que já existe no
+  // default (aqui, `{}`), então sem este passo os efeitos salvos sumiriam no
+  // reload. Cada entrada é normalizada para não confiar no formato gravado.
+  const storedEffects = (stored as { mediaEffects?: unknown }).mediaEffects;
+  if (isPlainObject(storedEffects)) {
+    const effects: Record<string, MediaEffect> = {};
+    for (const [key, value] of Object.entries(storedEffects)) {
+      if (!isPlainObject(value)) continue;
+      effects[key] = {
+        maskEnabled:
+          typeof value.maskEnabled === 'boolean'
+            ? value.maskEnabled
+            : DEFAULT_MEDIA_EFFECT.maskEnabled,
+        maskOpacity:
+          typeof value.maskOpacity === 'number'
+            ? value.maskOpacity
+            : DEFAULT_MEDIA_EFFECT.maskOpacity,
+        blur:
+          typeof value.blur === 'number' ? value.blur : DEFAULT_MEDIA_EFFECT.blur,
+      };
+    }
+    out.mediaEffects = effects;
+  }
 
   // Migrate legacy flat franchise.number* fields → numbers[] (only if stored had legacy and no numbers).
   const storedFranchise = (stored as { franchise?: Record<string, unknown> }).franchise;
