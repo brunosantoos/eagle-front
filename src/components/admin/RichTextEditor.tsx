@@ -4,7 +4,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import { Color, TextStyle } from '@tiptap/extension-text-style';
 import FontFamily from '@tiptap/extension-font-family';
 import Underline from '@tiptap/extension-underline';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Palette, Type } from 'lucide-react';
 import { PopoverPanel } from './PopoverPanel';
 import {
@@ -13,29 +13,36 @@ import {
   pickContrast,
   sanitizeHexInput,
 } from '../../lib/color';
+import {
+  ensureFontsLoaded,
+  FONT_CATALOG,
+  fontById,
+  fontIdOfFamily,
+  fontsByCategory,
+  type FontId,
+} from '../../lib/fonts';
 
-type FontOption = {
-  id: 'default' | 'vonique';
-  label: string;
-  hint: string;
-  family: string | null;
-};
-
-const FONT_OPTIONS: FontOption[] = [
-  { id: 'default', label: 'Padrão', hint: 'texto do site', family: null },
-  { id: 'vonique', label: 'Destaque Eagle', hint: 'estilo logotipo', family: "'Vonique 43', cursive" },
-];
-
+/**
+ * Seletor de fonte no estilo do Word: lista agrupada, cada nome desenhado na
+ * própria fonte. O catálogo vive em `lib/fonts.ts` — todas as opções têm
+ * acentuação completa.
+ */
 function FontPicker({
   value,
   onChange,
 }: {
-  value: FontOption['id'];
-  onChange: (id: FontOption['id']) => void;
+  value: FontId;
+  onChange: (id: FontId) => void;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const current = FONT_OPTIONS.find((o) => o.id === value) ?? FONT_OPTIONS[0];
+  const current = fontById(value) ?? FONT_CATALOG[0];
+
+  // No painel vale carregar o catálogo inteiro: sem isso a lista mostraria
+  // todos os nomes na mesma fonte e a escolha viraria adivinhação.
+  useEffect(() => {
+    if (open) ensureFontsLoaded(FONT_CATALOG.map((f) => f.id));
+  }, [open]);
 
   return (
     <>
@@ -51,7 +58,12 @@ function FontPicker({
         }`}
       >
         <Type size={12} className="text-zinc-400" />
-        <span style={{ fontFamily: current.family ?? undefined }}>{current.label}</span>
+        <span
+          className="max-w-[110px] truncate"
+          style={{ fontFamily: current.family ?? undefined }}
+        >
+          {current.label}
+        </span>
         <ChevronDown size={12} className={`text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -60,32 +72,39 @@ function FontPicker({
         open={open}
         onClose={() => setOpen(false)}
         ariaLabel="Fonte do texto"
-        width={220}
+        width={260}
       >
-        <div className="p-1">
-          {FONT_OPTIONS.map((opt) => {
-            const active = opt.id === value;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onChange(opt.id);
-                  setOpen(false);
-                }}
-                className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-left transition-colors ${active ? 'bg-eagle-red/15 text-white' : 'hover:bg-zinc-800 text-zinc-200'}`}
-              >
-                <div className="min-w-0">
-                  <p className="text-sm leading-tight" style={{ fontFamily: opt.family ?? undefined }}>
-                    {opt.label}
-                  </p>
-                  <p className="text-[10px] text-zinc-500 mt-0.5">{opt.hint}</p>
-                </div>
-                {active && <Check size={14} className="text-eagle-red shrink-0" />}
-              </button>
-            );
-          })}
+        <div className="p-1 max-h-[320px] overflow-y-auto">
+          {fontsByCategory().map((group) => (
+            <div key={group.category}>
+              <p className="px-2.5 pt-2 pb-1 text-[10px] uppercase tracking-wider text-zinc-500">
+                {group.category}
+              </p>
+              {group.fonts.map((opt) => {
+                const active = opt.id === value;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      onChange(opt.id);
+                      setOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-left transition-colors ${active ? 'bg-eagle-red/15 text-white' : 'hover:bg-zinc-800 text-zinc-200'}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm leading-tight truncate" style={{ fontFamily: opt.family ?? undefined }}>
+                        {opt.label}
+                      </p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">{opt.hint}</p>
+                    </div>
+                    {active && <Check size={14} className="text-eagle-red shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </PopoverPanel>
     </>
@@ -300,7 +319,7 @@ function ColorPicker({
 const btnCls = (active: boolean) =>
   `px-2 py-1 rounded text-xs font-medium transition-colors ${active ? 'bg-eagle-red text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`;
 
-export function RichTextEditor({
+function RichTextEditorInner({
   value,
   onChange,
   placeholder,
@@ -309,6 +328,19 @@ export function RichTextEditor({
   onChange: (html: string) => void;
   placeholder?: string;
 }) {
+  // `onChange` vem como lambda nova a cada render do dashboard. Guardar numa ref
+  // deixa a identidade da prop irrelevante — é o que permite o memo lá embaixo.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  /** Último HTML que este editor emitiu; usado para pular o setContent inútil. */
+  const lastEmittedRef = useRef(value);
+
+  const emit = useCallback((html: string) => {
+    lastEmittedRef.current = html;
+    onChangeRef.current(html);
+  }, []);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -320,7 +352,7 @@ export function RichTextEditor({
     ],
     content: value || '',
     onUpdate({ editor }) {
-      onChange(editor.isEmpty ? '' : editor.getHTML());
+      emit(editor.isEmpty ? '' : editor.getHTML());
     },
     editorProps: {
       attributes: {
@@ -332,9 +364,14 @@ export function RichTextEditor({
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
+    // Caso comum: o valor que chegou é o que este editor acabou de emitir.
+    // Sair aqui evita o `getHTML()` — serializar o documento a cada tecla, em
+    // todos os editores da seção, era a origem da lentidão do painel.
+    if (value === lastEmittedRef.current) return;
     try {
       const current = editor.isEmpty ? '' : editor.getHTML();
       if (value !== current) {
+        lastEmittedRef.current = value;
         editor.commands.setContent(value || '', { emitUpdate: false });
       }
     } catch {
@@ -352,9 +389,9 @@ export function RichTextEditor({
     ? 'h3'
     : 'p';
 
-  const font = editor.isActive({ fontFamily: "'Vonique 43', cursive" })
-    ? 'vonique'
-    : 'default';
+  const font = fontIdOfFamily(
+    editor.getAttributes('textStyle').fontFamily as string | undefined,
+  );
 
   // '' = sem cor explícita, ou seja, herda a cor padrão do site.
   const activeColor = (editor.getAttributes('textStyle').color as string | undefined) ?? '';
@@ -440,12 +477,9 @@ export function RichTextEditor({
         <FontPicker
           value={font}
           onChange={(id) => {
-            const opt = FONT_OPTIONS.find((o) => o.id === id);
-            if (opt?.family) {
-              editor.chain().focus().setFontFamily(opt.family).run();
-            } else {
-              editor.chain().focus().unsetFontFamily().run();
-            }
+            const family = fontById(id)?.family;
+            if (family) editor.chain().focus().setFontFamily(family).run();
+            else editor.chain().focus().unsetFontFamily().run();
           }}
         />
 
@@ -471,3 +505,15 @@ export function RichTextEditor({
     </div>
   );
 }
+
+/**
+ * Só re-renderiza quando o texto deste campo muda.
+ *
+ * `onChange` fica de fora da comparação de propósito (vive numa ref): o
+ * dashboard recria essa lambda a cada tecla, e sem isso o memo nunca acertaria.
+ */
+export const RichTextEditor = memo(
+  RichTextEditorInner,
+  (prev, next) =>
+    prev.value === next.value && prev.placeholder === next.placeholder,
+);
