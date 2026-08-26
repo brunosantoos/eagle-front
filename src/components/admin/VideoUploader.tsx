@@ -1,10 +1,10 @@
 /// <reference types="vite/client" />
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { Loader2, Upload, Video } from 'lucide-react';
 import { resolveMediaUrl } from '../../lib/mediaUrl';
 import { uploadFile } from '../../lib/upload';
 
-export function VideoUploader({
+function VideoUploaderInner({
   value,
   onChange,
   label = 'Vídeo',
@@ -100,3 +100,13 @@ export function VideoUploader({
     </div>
   );
 }
+
+/** Mesmo motivo do ImageUploader: o `<video>` de preview não pode remontar a cada tecla. */
+export const VideoUploader = memo(
+  VideoUploaderInner,
+  (prev, next) =>
+    prev.value === next.value &&
+    prev.label === next.label &&
+    prev.maxWidth === next.maxWidth &&
+    prev.hint === next.hint,
+);

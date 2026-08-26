@@ -21,8 +21,17 @@ import {
 import { resolveMediaUrl } from '../../lib/mediaUrl';
 import { uploadFile } from '../../lib/upload';
 
-/** Presets de proporção. `ratio: null` = proporção original da imagem. */
-const ASPECT_PRESETS: { id: string; label: string; ratio: number | null }[] = [
+type AspectPreset = { id: string; label: string; ratio: number | null };
+
+/**
+ * Presets genéricos. `ratio: null` = proporção original da imagem.
+ *
+ * O preset que importa de verdade — "Campo do site" — é montado em tempo de
+ * execução com a proporção exata do lugar onde a imagem aparece no site, e
+ * entra na frente destes. Antes, a proporção do campo era arredondada para o
+ * preset mais próximo daqui, e um campo 3:4 acabava recortado em 4:5.
+ */
+const ASPECT_PRESETS: AspectPreset[] = [
   { id: 'original', label: 'Original', ratio: null },
   { id: '16/9', label: '16:9', ratio: 16 / 9 },
   { id: '4/3', label: '4:3', ratio: 4 / 3 },
@@ -30,6 +39,9 @@ const ASPECT_PRESETS: { id: string; label: string; ratio: number | null }[] = [
   { id: '4/5', label: '4:5', ratio: 4 / 5 },
   { id: '9/16', label: '9:16', ratio: 9 / 16 },
 ];
+
+/** Id do preset exato do campo. */
+const FIELD_PRESET_ID = 'field';
 
 /** Largura máxima do arquivo gerado — evita salvar 6000px de largura no servidor. */
 const MAX_OUTPUT_WIDTH = 1920;
@@ -41,19 +53,10 @@ function parseAspect(aspect?: string): number | null {
   return w / h;
 }
 
-function nearestPresetId(ratio: number | null): string {
-  if (ratio === null) return 'original';
-  let best = ASPECT_PRESETS[0];
-  let bestDiff = Number.POSITIVE_INFINITY;
-  for (const preset of ASPECT_PRESETS) {
-    if (preset.ratio === null) continue;
-    const diff = Math.abs(preset.ratio - ratio);
-    if (diff < bestDiff) {
-      bestDiff = diff;
-      best = preset;
-    }
-  }
-  return bestDiff < 0.02 ? best.id : 'original';
+/** '735/791' -> '735:791', para exibir no botão do preset. */
+function aspectLabel(aspect: string): string {
+  const [w, h] = aspect.split('/').map((n) => n.trim());
+  return w && h ? `${w}:${h}` : aspect;
 }
 
 /**
@@ -89,6 +92,8 @@ export function ImageCropModal({
   open,
   value,
   aspect,
+  fieldLabel,
+  fieldNote,
   effects,
   onClose,
   onCropped,
@@ -96,8 +101,15 @@ export function ImageCropModal({
   open: boolean;
   /** URL atual do campo (relativa ou absoluta). */
   value: string;
-  /** Proporção sugerida pelo campo, ex.: '16/9'. */
+  /**
+   * Proporção **exata** do espaço que a imagem ocupa no site, ex.: '735/791'.
+   * Vira o preset "Campo do site", pré-selecionado.
+   */
   aspect?: string;
+  /** Nome do campo, exibido junto do preset (ex.: 'Sobre — pilares'). */
+  fieldLabel?: string;
+  /** Observação sobre o enquadramento (ex.: 'ocupa a tela toda'). */
+  fieldNote?: string;
   /** Efeitos reais do campo. Ausente = só prévia local, sem efeito no site. */
   effects?: ImageEffectsConfig;
   onClose: () => void;
@@ -110,7 +122,26 @@ export function ImageCropModal({
     null,
   );
 
-  const [presetId, setPresetId] = useState(() => nearestPresetId(parseAspect(aspect)));
+  /** Proporção exata do campo, quando o chamador informa uma. */
+  const fieldRatio = parseAspect(aspect);
+
+  const presets: AspectPreset[] = fieldRatio
+    ? [
+        {
+          id: FIELD_PRESET_ID,
+          label: `Campo do site (${aspectLabel(aspect!)})`,
+          ratio: fieldRatio,
+        },
+        ...ASPECT_PRESETS,
+      ]
+    : ASPECT_PRESETS;
+
+  // Começa no enquadramento do campo: é o que o usuário quer em 9 de 10 casos,
+  // e era exatamente o que faltava (o modal abria no preset genérico mais
+  // próximo, que quase nunca batia com o espaço real do site).
+  const [presetId, setPresetId] = useState(() =>
+    fieldRatio ? FIELD_PRESET_ID : 'original',
+  );
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
@@ -142,7 +173,7 @@ export function ImageCropModal({
 
   const src = useMemo(() => resolveMediaUrl(value), [value]);
 
-  const presetRatio = ASPECT_PRESETS.find((p) => p.id === presetId)?.ratio ?? null;
+  const presetRatio = presets.find((p) => p.id === presetId)?.ratio ?? null;
   const frameRatio =
     presetRatio ?? (natural ? natural.w / natural.h : parseAspect(aspect) ?? 16 / 9);
 
@@ -338,8 +369,12 @@ export function ImageCropModal({
               Editar imagem
             </h3>
             <p className="text-xs text-zinc-500 mt-1">
-              Ajuste o enquadramento{effects ? ', a máscara escura e o desfoque' : ''} desta imagem.
+              {fieldLabel ? `${fieldLabel} — ajuste` : 'Ajuste'} o enquadramento
+              {effects ? ', a máscara escura e o desfoque' : ''} desta imagem.
             </p>
+            {fieldNote && (
+              <p className="text-[11px] text-eagle-gold/90 mt-1">{fieldNote}</p>
+            )}
           </div>
           <button
             type="button"
@@ -353,7 +388,7 @@ export function ImageCropModal({
 
         <div className="p-5 space-y-5">
           <div className="flex flex-wrap gap-2">
-            {ASPECT_PRESETS.map((preset) => (
+            {presets.map((preset) => (
               <button
                 key={preset.id}
                 type="button"
@@ -368,6 +403,12 @@ export function ImageCropModal({
               </button>
             ))}
           </div>
+          {fieldRatio && presetId !== FIELD_PRESET_ID && (
+            <p className="text-[11px] text-amber-500/90">
+              Fora do &quot;Campo do site&quot; a imagem pode aparecer cortada
+              no site — o espaço lá tem proporção fixa.
+            </p>
+          )}
 
           <div
             ref={frameRef}

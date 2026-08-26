@@ -1,26 +1,30 @@
 /// <reference types="vite/client" />
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { ImageIcon, Loader2, Pencil, Upload } from 'lucide-react';
 import { resolveMediaUrl } from '../../lib/mediaUrl';
-import { uploadFile } from '../../lib/upload';
+import { describeCompression, uploadFileDetailed } from '../../lib/upload';
 import { ImageCropModal, type ImageEffectsConfig } from './ImageCropModal';
 
-export function ImageUploader({
+function ImageUploaderInner({
   value,
   onChange,
   label = 'Imagem',
   aspect = '16/9',
   maxWidth = '220px',
   hint,
+  fieldNote,
   effects,
 }: {
   value: string;
   onChange: (url: string) => void;
   label?: string;
+  /** Proporção exata do espaço no site — vira o preset "Campo do site". */
   aspect?: string;
   maxWidth?: string;
   /** Texto auxiliar exibido sob o label (ex.: dimensão recomendada). */
   hint?: string;
+  /** Observação sobre o enquadramento, exibida no editor de recorte. */
+  fieldNote?: string;
   /** Máscara e desfoque do campo, editáveis no modal. Ausente = só recorte. */
   effects?: ImageEffectsConfig;
 }) {
@@ -28,6 +32,8 @@ export function ImageUploader({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  /** Resumo da compressão do último envio (ex.: '9.15 MB → 180 KB'). */
+  const [compressionNote, setCompressionNote] = useState<string | null>(null);
 
   const handlePick = () => inputRef.current?.click();
 
@@ -38,9 +44,12 @@ export function ImageUploader({
     }
     setUploading(true);
     setError(null);
+    setCompressionNote(null);
     try {
       // Grava caminho relativo — o host entra no render (ver lib/mediaUrl.ts).
-      onChange(await uploadFile(file, file.name));
+      const result = await uploadFileDetailed(file, file.name);
+      onChange(result.url);
+      setCompressionNote(describeCompression(result));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro no upload.');
     } finally {
@@ -124,10 +133,15 @@ export function ImageUploader({
         </div>
       )}
       {error && <p className="text-[11px] text-red-400">{error}</p>}
+      {!error && compressionNote && (
+        <p className="text-[11px] text-emerald-400/90">{compressionNote}</p>
+      )}
       <ImageCropModal
         open={editOpen}
         value={value}
         aspect={aspect}
+        fieldLabel={label}
+        fieldNote={fieldNote}
         effects={effects}
         onClose={() => setEditOpen(false)}
         onCropped={(url) => onChange(url)}
@@ -135,3 +149,22 @@ export function ImageUploader({
     </div>
   );
 }
+
+/**
+ * Re-renderiza só quando a própria imagem (ou seu enquadramento) muda.
+ *
+ * Os callbacks ficam fora da comparação porque o dashboard os recria a cada
+ * tecla digitada em qualquer campo da seção — e cada preview aqui é um `<img>`
+ * de verdade sendo remontado à toa.
+ */
+export const ImageUploader = memo(
+  ImageUploaderInner,
+  (prev, next) =>
+    prev.value === next.value &&
+    prev.label === next.label &&
+    prev.aspect === next.aspect &&
+    prev.maxWidth === next.maxWidth &&
+    prev.hint === next.hint &&
+    prev.fieldNote === next.fieldNote &&
+    prev.effects === next.effects,
+);

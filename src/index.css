@@ -1,4 +1,5 @@
-@import url("https://fonts.cdnfonts.com/css/vonique-43");
+/* Vonique 43 é carregada no index.html (link assíncrono) — como @import aqui
+   ela entrava na cadeia de download do CSS e atrasava o primeiro render. */
 @import "tailwindcss";
 
 @theme {

@@ -20,6 +20,7 @@ import {
   Save,
   Trash2,
   TrendingUp,
+  Type,
   Users,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -34,6 +35,7 @@ import { CARD_ICON_OPTIONS, resolveCardIcon } from '../../lib/cardIcons';
 import { SOCIAL_PLATFORMS, resolveSocialIcon } from '../../lib/socialIcons';
 import { defaultSiteContent, type HeroMediaType } from '../../lib/siteContent';
 import { AdminMediaPanel } from './AdminMediaPanel';
+import { AdminTypographyPanel } from './AdminTypographyPanel';
 import { ImageUploader } from '../../components/admin/ImageUploader';
 import { VideoUploader } from '../../components/admin/VideoUploader';
 import { AdminEmailPanel } from './AdminEmailPanel';
@@ -220,12 +222,13 @@ type AdminSectionId =
   | 'about'
   | 'franchise'
   | 'media'
+  | 'typography'
   | 'users'
   | 'email'
   | 'storage'
   | 'leads';
 
-const CONTENT_SECTIONS: AdminSectionId[] = ['nav-footer', 'home', 'about', 'franchise', 'media'];
+const CONTENT_SECTIONS: AdminSectionId[] = ['nav-footer', 'home', 'about', 'franchise', 'media', 'typography'];
 
 type SidebarGroup = {
   label: string;
@@ -259,7 +262,7 @@ export default function AdminDashboard() {
 
   const allowedSections: AdminSectionId[] =
     role === 'admin'
-      ? ['nav-footer', 'home', 'about', 'franchise', 'media', 'users', 'email', 'storage', 'leads']
+      ? ['nav-footer', 'home', 'about', 'franchise', 'media', 'typography', 'users', 'email', 'storage', 'leads']
       : role === 'editor'
         ? CONTENT_SECTIONS
         : role === 'user'
@@ -303,9 +306,25 @@ export default function AdminDashboard() {
         nav: structuredClone(draft.nav),
         footer: structuredClone(draft.footer),
         privacyPolicy: structuredClone(draft.privacyPolicy),
+        // Sem esta linha o texto dos Termos de Uso era descartado no save:
+        // a aba existia no painel, mas nada do que se escrevia lá chegava ao site.
+        termsOfUse: structuredClone(draft.termsOfUse),
       }),
       {
         onSuccess: () => success('Menu e rodapé salvos e publicados.'),
+        onError: () => error(SAVE_ERROR_MSG),
+      },
+    );
+  };
+
+  const saveTypography = () => {
+    setContent(
+      (prev) => ({
+        ...prev,
+        typography: { ...draft.typography },
+      }),
+      {
+        onSuccess: () => success('Fontes do site publicadas.'),
         onError: () => error(SAVE_ERROR_MSG),
       },
     );
@@ -381,6 +400,7 @@ export default function AdminDashboard() {
         { id: 'about', label: 'Sobre', icon: BookOpen, description: 'História e pilares' },
         { id: 'franchise', label: 'Franquia', icon: Briefcase, description: 'Investimento e formulário' },
         { id: 'media', label: 'Mídias', icon: ImageIcon, description: 'Imagens e vídeos' },
+        { id: 'typography', label: 'Tipografia', icon: Type, description: 'Fontes do site' },
       ],
     },
     {
@@ -653,6 +673,18 @@ export default function AdminDashboard() {
                   return { ...effect, hint, onChange: writeEffect };
                 }}
               />
+            )}
+            {active === 'typography' && (
+              <Section
+                title="Tipografia"
+                subtitle="Escolha as fontes usadas no site. Todas as opções têm acentuação completa."
+              >
+                <AdminTypographyPanel
+                  value={draft.typography}
+                  onChange={(typography) => setDraft((d) => ({ ...d, typography }))}
+                />
+                <SectionSaveBar onSave={saveTypography} label="Salvar fontes" />
+              </Section>
             )}
             {active === 'users' && <AdminUsersPanel />}
             {active === 'email' && <AdminEmailPanel />}
@@ -1291,6 +1323,7 @@ export default function AdminDashboard() {
                     <ImageUploader
                       label="Imagem do banner"
                       hint="Dimensão recomendada: 1920x1080px"
+                      fieldNote="Preenche a tela inteira. Deixe o essencial no centro: as bordas somem em telas mais estreitas."
                       aspect="16/9"
                       maxWidth="320px"
                       value={draft.home.heroMedia.imageUrl}
@@ -1371,6 +1404,7 @@ export default function AdminDashboard() {
                             <ImageUploader
                               label=""
                               hint="Dimensão recomendada: 1920x1080px"
+                              fieldNote="Preenche a tela inteira. Deixe o essencial no centro: as bordas somem em telas mais estreitas."
                               aspect="16/9"
                               value={img}
                               onChange={(url) =>
@@ -2038,8 +2072,9 @@ export default function AdminDashboard() {
                     <ImageUploader
                       label="Imagem do card"
                       hint="Dimensão recomendada: 760x960px"
+                      fieldNote="O card do carrossel tem proporção fixa 380x480 no site — o recorte aqui é exatamente o que aparece."
                       value={w.img}
-                      aspect="4/5"
+                      aspect="19/24"
                       onChange={(url) =>
                         setDraft((d) => {
                           const workouts = [...d.home.workouts];

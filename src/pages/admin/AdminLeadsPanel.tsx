@@ -1,6 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Eye, GripVertical, Mail, MessageSquare, Trash2, Users, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  Check,
+  Clock,
+  Copy,
+  Eye,
+  GripVertical,
+  Mail,
+  MessageSquare,
+  RotateCcw,
+  Trash2,
+  Users,
+  X,
+} from 'lucide-react';
 import { trpc } from '../../lib/trpc';
+import { useAdminAuth } from '../../context/AdminAuthProvider';
 
 type FranchiseStatus = 'novo' | 'contatado' | 'qualificado' | 'encerrado';
 type ContactStatus = 'novo' | 'lido' | 'respondido';
@@ -17,6 +31,111 @@ const CONTACT_COLS: { key: ContactStatus; label: string; color: string }[] = [
   { key: 'lido', label: 'Lido', color: 'border-blue-700/50 bg-blue-950/20' },
   { key: 'respondido', label: 'Respondido', color: 'border-green-700/50 bg-green-950/20' },
 ];
+
+/**
+ * Prazo de resposta. Passou disso sem responder, a mensagem aparece como
+ * "em atraso" — o estado é calculado, não guardado: depende do relógio, e um
+ * valor gravado ficaria velho sozinho.
+ */
+const RESPONSE_SLA_DAYS = 5;
+
+/** Espelha `TRASH_RETENTION_DAYS` do backend (`eagle-back/src/lib/trash.ts`). */
+const TRASH_RETENTION_DAYS = 30;
+
+/** Dias inteiros decorridos desde a data. */
+function daysSince(d: Date | string): number {
+  const then = new Date(d).getTime();
+  return Math.max(0, Math.floor((Date.now() - then) / (24 * 60 * 60 * 1000)));
+}
+
+/** 'hoje' | 'ontem' | 'há 10 dias' — o cronômetro pedido no card. */
+function formatAge(d: Date | string): string {
+  const days = daysSince(d);
+  if (days === 0) return 'hoje';
+  if (days === 1) return 'ontem';
+  return `há ${days} dias`;
+}
+
+type ResponseState = {
+  key: 'respondido' | 'a-responder' | 'em-atraso';
+  label: string;
+  className: string;
+};
+
+/**
+ * Situação de resposta de uma mensagem, derivada do status e da idade.
+ *
+ * Campos opcionais porque o tsconfig do submodule do backend não liga `strict`
+ * e os tipos que chegam pelo tRPC vêm todos como opcionais.
+ */
+function responseState(contact: {
+  status?: string;
+  createdAt?: Date | string;
+}): ResponseState {
+  if (contact.status === 'respondido') {
+    return {
+      key: 'respondido',
+      label: 'Respondido',
+      className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    };
+  }
+  const days = contact.createdAt ? daysSince(contact.createdAt) : 0;
+  if (days >= RESPONSE_SLA_DAYS) {
+    return {
+      key: 'em-atraso',
+      label: `Em atraso — ${days} dias sem resposta`,
+      className: 'bg-red-500/15 text-red-300 border-red-500/30',
+    };
+  }
+  return {
+    key: 'a-responder',
+    label: 'A responder',
+    className: 'bg-amber-500/15 text-amber-200 border-amber-500/30',
+  };
+}
+
+/** Etiqueta de idade usada nos cards do quadro. */
+function AgeBadge({ date, late }: { date: Date | string; late?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[10px] rounded-full px-1.5 py-0.5 border ${
+        late
+          ? 'bg-red-500/15 text-red-300 border-red-500/30'
+          : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+      }`}
+      title={`Recebido ${formatAge(date)}`}
+    >
+      <Clock size={10} />
+      {formatAge(date)}
+    </span>
+  );
+}
+
+/** Copia texto e devolve feedback curto — usado no e-mail do contato. */
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard
+          ?.writeText(value)
+          .then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          })
+          .catch(() => {
+            /* sem permissão de área de transferência */
+          });
+      }}
+      title={copied ? 'Copiado' : label}
+      aria-label={label}
+      className="shrink-0 p-1 rounded text-zinc-500 hover:text-eagle-gold transition-colors"
+    >
+      {copied ? <Check size={13} /> : <Copy size={13} />}
+    </button>
+  );
+}
 
 function formatDate(d: Date | string) {
   return new Date(d).toLocaleDateString('pt-BR');
@@ -143,7 +262,11 @@ function FranchiseKanban() {
     onSuccess: () => utils.franchiseLeads.list.invalidate(),
   });
   const deleteLead = trpc.franchiseLeads.delete.useMutation({
-    onSuccess: () => utils.franchiseLeads.list.invalidate(),
+    onSuccess: () => {
+      void utils.franchiseLeads.list.invalidate();
+      // Some do quadro e aparece na lixeira — as duas listas mudam.
+      void utils.franchiseLeads.listDeleted.invalidate();
+    },
   });
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -216,8 +339,8 @@ function FranchiseKanban() {
                     <button
                       type="button"
                       onClick={() => deleteLead.mutate({ id: lead.id })}
-                      title="Excluir lead"
-                      aria-label={`Excluir ${lead.name}`}
+                      title="Mover para a lixeira"
+                      aria-label={`Mover ${lead.name} para a lixeira`}
                       className="text-zinc-600 hover:text-red-400 transition-colors"
                     >
                       <Trash2 size={14} />
@@ -228,7 +351,10 @@ function FranchiseKanban() {
                   <p>{lead.phone}</p>
                   <p>{lead.city}</p>
                   <p className="text-zinc-600">{lead.capital}</p>
-                  <p className="text-zinc-700">{formatDate(lead.createdAt)}</p>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className="text-zinc-700">{formatDate(lead.createdAt)}</span>
+                    <AgeBadge date={lead.createdAt} />
+                  </div>
                 </div>
                 <textarea
                   className="w-full bg-zinc-800/60 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-eagle-red resize-none"
@@ -255,7 +381,11 @@ function FranchiseKanban() {
     <DetailModal
       open={detail !== null}
       title={detail?.name ?? ''}
-      subtitle={detail ? `Lead de franquia · recebido em ${formatDateTime(detail.createdAt)}` : undefined}
+      subtitle={
+        detail
+          ? `Lead de franquia · recebido em ${formatDateTime(detail.createdAt)} (${formatAge(detail.createdAt)})`
+          : undefined
+      }
       onClose={() => setDetailId(null)}
       footer={
         detail ? (
@@ -285,9 +415,13 @@ function FranchiseKanban() {
       {detail && (
         <div className="space-y-1">
           <DetailRow label="E-mail">
-            <a href={`mailto:${detail.email}`} className="text-eagle-gold hover:underline">
-              {detail.email}
-            </a>
+            <span className="inline-flex items-center gap-1.5">
+              <a href={`mailto:${detail.email}`} className="text-eagle-gold hover:underline">
+                {detail.email}
+              </a>
+              {/* Sem app de e-mail padrão o `mailto:` não abre nada — daí o copiar. */}
+              <CopyButton value={detail.email} label="Copiar e-mail" />
+            </span>
           </DetailRow>
           <DetailRow label="Telefone">
             {detail.phone ? (
@@ -349,7 +483,10 @@ function ContactKanban() {
     onSuccess: () => utils.contactSubmissions.list.invalidate(),
   });
   const deleteContact = trpc.contactSubmissions.delete.useMutation({
-    onSuccess: () => utils.contactSubmissions.list.invalidate(),
+    onSuccess: () => {
+      void utils.contactSubmissions.list.invalidate();
+      void utils.contactSubmissions.listDeleted.invalidate();
+    },
   });
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -431,8 +568,8 @@ function ContactKanban() {
                     <button
                       type="button"
                       onClick={() => deleteContact.mutate({ id: contact.id })}
-                      title="Excluir contato"
-                      aria-label={`Excluir ${contact.name}`}
+                      title="Mover para a lixeira"
+                      aria-label={`Mover ${contact.name} para a lixeira`}
                       className="text-zinc-600 hover:text-red-400 transition-colors"
                     >
                       <Trash2 size={14} />
@@ -442,7 +579,13 @@ function ContactKanban() {
                 <div className="text-xs text-zinc-500 space-y-0.5">
                   {contact.phone && <p>{contact.phone}</p>}
                   <p className="text-zinc-400 line-clamp-2">{contact.message}</p>
-                  <p className="text-zinc-700">{formatDate(contact.createdAt)}</p>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className="text-zinc-700">{formatDate(contact.createdAt)}</span>
+                    <AgeBadge
+                      date={contact.createdAt}
+                      late={responseState(contact).key === 'em-atraso'}
+                    />
+                  </div>
                 </div>
                 <textarea
                   className="w-full bg-zinc-800/60 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-eagle-red resize-none"
@@ -469,7 +612,11 @@ function ContactKanban() {
     <DetailModal
       open={detail !== null}
       title={detail?.name ?? ''}
-      subtitle={detail ? `Contato · recebido em ${formatDateTime(detail.createdAt)}` : undefined}
+      subtitle={
+        detail
+          ? `Contato · recebido em ${formatDateTime(detail.createdAt)} (${formatAge(detail.createdAt)})`
+          : undefined
+      }
       onClose={() => setDetailId(null)}
       footer={
         detail ? (
@@ -504,9 +651,13 @@ function ContactKanban() {
       {detail && (
         <div className="space-y-1">
           <DetailRow label="E-mail">
-            <a href={`mailto:${detail.email}`} className="text-eagle-gold hover:underline">
-              {detail.email}
-            </a>
+            <span className="inline-flex items-center gap-1.5">
+              <a href={`mailto:${detail.email}`} className="text-eagle-gold hover:underline">
+                {detail.email}
+              </a>
+              {/* Sem app de e-mail padrão o `mailto:` não abre nada — daí o copiar. */}
+              <CopyButton value={detail.email} label="Copiar e-mail" />
+            </span>
           </DetailRow>
           <DetailRow label="Telefone">
             {detail.phone ? (
@@ -517,8 +668,53 @@ function ContactKanban() {
               <span className="text-zinc-500">—</span>
             )}
           </DetailRow>
+          <DetailRow label="Situação">
+            {(() => {
+              const state = responseState(detail);
+              return (
+                <span
+                  className={`inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 ${state.className}`}
+                >
+                  {state.key === 'em-atraso' ? (
+                    <AlertTriangle size={12} />
+                  ) : state.key === 'respondido' ? (
+                    <Check size={12} />
+                  ) : (
+                    <Clock size={12} />
+                  )}
+                  {state.label}
+                </span>
+              );
+            })()}
+            <p className="text-[11px] text-zinc-600 mt-1.5">
+              {detail.respondedAt
+                ? `Marcada como respondida em ${formatDateTime(detail.respondedAt)}.`
+                : `Vira "em atraso" sozinho após ${RESPONSE_SLA_DAYS} dias sem resposta.`}
+            </p>
+          </DetailRow>
           <DetailRow label="Status">
-            {CONTACT_COLS.find((c) => c.key === detail.status)?.label ?? detail.status}
+            <div className="flex flex-wrap gap-2">
+              {CONTACT_COLS.map((col) => {
+                const active = detail.status === col.key;
+                return (
+                  <button
+                    key={col.key}
+                    type="button"
+                    onClick={() =>
+                      !active &&
+                      updateStatus.mutate({ id: detail.id, status: col.key })
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      active
+                        ? 'bg-eagle-red text-white'
+                        : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
+                    }`}
+                  >
+                    {col.label}
+                  </button>
+                );
+              })}
+            </div>
           </DetailRow>
           <DetailRow label="Mensagem">
             <p className="whitespace-pre-wrap leading-relaxed">{detail.message}</p>
@@ -546,16 +742,223 @@ function ContactKanban() {
   );
 }
 
+// --- Lixeira ---
+
+/**
+ * Lixeira de leads e contatos.
+ *
+ * Excluir no quadro só manda para cá — o registro continua no banco por 30
+ * dias e pode voltar. Foi o que faltava quando uma mensagem era apagada por
+ * engano: antes o `delete` removia a linha e não havia como desfazer.
+ */
+function TrashPanel() {
+  const utils = trpc.useUtils();
+  const { data: leads = [], isLoading: loadingLeads } =
+    trpc.franchiseLeads.listDeleted.useQuery();
+  const { data: contacts = [], isLoading: loadingContacts } =
+    trpc.contactSubmissions.listDeleted.useQuery();
+
+  const refreshLeads = () => {
+    void utils.franchiseLeads.listDeleted.invalidate();
+    void utils.franchiseLeads.list.invalidate();
+  };
+  const refreshContacts = () => {
+    void utils.contactSubmissions.listDeleted.invalidate();
+    void utils.contactSubmissions.list.invalidate();
+  };
+
+  const restoreLead = trpc.franchiseLeads.restore.useMutation({
+    onSuccess: refreshLeads,
+  });
+  const purgeLead = trpc.franchiseLeads.purge.useMutation({
+    onSuccess: refreshLeads,
+  });
+  const restoreContact = trpc.contactSubmissions.restore.useMutation({
+    onSuccess: refreshContacts,
+  });
+  const purgeContact = trpc.contactSubmissions.purge.useMutation({
+    onSuccess: refreshContacts,
+  });
+
+  /** Id aguardando confirmação de exclusão definitiva. */
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [confirmingEmpty, setConfirmingEmpty] = useState(false);
+
+  // Esvaziar a lixeira é irreversível, então fica só para admin — o backend
+  // aplica a mesma regra (`adminProcedure`), isto aqui é só a UI acompanhando.
+  const { role } = useAdminAuth();
+  const purgeAllLeads = trpc.franchiseLeads.purgeAll.useMutation({
+    onSuccess: refreshLeads,
+  });
+  const purgeAllContacts = trpc.contactSubmissions.purgeAll.useMutation({
+    onSuccess: refreshContacts,
+  });
+  const emptyTrash = () => {
+    purgeAllLeads.mutate();
+    purgeAllContacts.mutate();
+    setConfirmingEmpty(false);
+  };
+
+  const rows = [
+    ...leads.map((lead) => ({
+      id: lead.id ?? '',
+      kind: 'Lead de franquia',
+      name: lead.name ?? '',
+      detail: [lead.email, lead.city].filter(Boolean).join(' · '),
+      deletedAt: lead.deletedAt,
+      onRestore: () => restoreLead.mutate({ id: lead.id ?? '' }),
+      onPurge: () => purgeLead.mutate({ id: lead.id ?? '' }),
+    })),
+    ...contacts.map((contact) => ({
+      id: contact.id ?? '',
+      kind: 'Contato',
+      name: contact.name ?? '',
+      detail: [contact.email, contact.message?.slice(0, 60)]
+        .filter(Boolean)
+        .join(' · '),
+      deletedAt: contact.deletedAt,
+      onRestore: () => restoreContact.mutate({ id: contact.id ?? '' }),
+      onPurge: () => purgeContact.mutate({ id: contact.id ?? '' }),
+    })),
+  ].sort((a, b) => {
+    const at = a.deletedAt ? new Date(a.deletedAt).getTime() : 0;
+    const bt = b.deletedAt ? new Date(b.deletedAt).getTime() : 0;
+    return bt - at;
+  });
+
+  if (loadingLeads || loadingContacts) {
+    return <p className="text-sm text-zinc-500 py-8 text-center">Carregando…</p>;
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="py-14 text-center">
+        <Trash2 size={28} className="text-zinc-700 mx-auto mb-3" />
+        <p className="text-sm text-zinc-400">A lixeira está vazia.</p>
+        <p className="text-xs text-zinc-600 mt-1.5">
+          O que for excluído no quadro aparece aqui e pode ser restaurado por{' '}
+          {TRASH_RETENTION_DAYS} dias.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-zinc-500">
+          Itens excluídos ficam aqui por {TRASH_RETENTION_DAYS} dias e depois são
+          apagados automaticamente.
+        </p>
+        {role === 'admin' &&
+          (confirmingEmpty ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={emptyTrash}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-700 text-white hover:bg-red-600 transition-colors"
+              >
+                <AlertTriangle size={13} />
+                Apagar os {rows.length} itens de vez
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingEmpty(false)}
+                className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingEmpty(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-zinc-700 text-zinc-400 hover:text-red-300 hover:border-red-800 transition-colors"
+            >
+              <Trash2 size={13} />
+              Esvaziar lixeira
+            </button>
+          ))}
+      </div>
+      {rows.map((row) => (
+        <div
+          key={`${row.kind}-${row.id}`}
+          className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-3"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500 border border-zinc-700 rounded-full px-2 py-0.5">
+                {row.kind}
+              </span>
+              <p className="font-medium text-white text-sm truncate">
+                {row.name}
+              </p>
+            </div>
+            <p className="text-xs text-zinc-500 truncate mt-1">{row.detail}</p>
+            {row.deletedAt && (
+              <p className="text-[11px] text-zinc-600 mt-1">
+                Excluído {formatAge(row.deletedAt)} · sai da lixeira em{' '}
+                {Math.max(
+                  0,
+                  TRASH_RETENTION_DAYS - daysSince(row.deletedAt),
+                )}{' '}
+                dias
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={row.onRestore}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition-colors"
+            >
+              <RotateCcw size={13} />
+              Restaurar
+            </button>
+            {confirmingId === row.id ? (
+              <button
+                type="button"
+                onClick={() => {
+                  row.onPurge();
+                  setConfirmingId(null);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-700 text-white hover:bg-red-600 transition-colors"
+              >
+                <AlertTriangle size={13} />
+                Confirmar exclusão
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingId(row.id)}
+                title="Excluir definitivamente"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-zinc-700 text-zinc-400 hover:text-red-300 hover:border-red-800 transition-colors"
+              >
+                <Trash2 size={13} />
+                Excluir de vez
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // --- Main Panel ---
 export default function AdminLeadsPanel() {
-  const [tab, setTab] = useState<'franchise' | 'contact'>('franchise');
+  const [tab, setTab] = useState<'franchise' | 'contact' | 'trash'>('franchise');
 
   return (
     <section className="border border-zinc-800/80 rounded-2xl p-6 md:p-8 bg-zinc-900/25 shadow-xl shadow-black/30">
       <div className="mb-6 pb-4 border-b border-zinc-800/80 flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1">
           <h2 className="text-xl font-heading font-bold text-white tracking-tight">Leads e Contatos</h2>
-          <p className="text-sm text-zinc-500 mt-1">Arraste os cards entre as colunas para mudar o status.</p>
+          <p className="text-sm text-zinc-500 mt-1">
+            {tab === 'trash'
+              ? `Itens excluídos ficam recuperáveis por ${TRASH_RETENTION_DAYS} dias.`
+              : 'Arraste os cards entre as colunas para mudar o status.'}
+          </p>
         </div>
         <div className="flex gap-2">
           <button
@@ -572,9 +975,18 @@ export default function AdminLeadsPanel() {
           >
             <MessageSquare size={15} /> Contatos
           </button>
+          <button
+            type="button"
+            onClick={() => setTab('trash')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${tab === 'trash' ? 'bg-eagle-red text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
+          >
+            <Trash2 size={15} /> Lixeira
+          </button>
         </div>
       </div>
-      {tab === 'franchise' ? <FranchiseKanban /> : <ContactKanban />}
+      {tab === 'franchise' && <FranchiseKanban />}
+      {tab === 'contact' && <ContactKanban />}
+      {tab === 'trash' && <TrashPanel />}
     </section>
   );
 }

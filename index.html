@@ -6,7 +6,22 @@
     <title>Eagle Center Fitness | Premium Franchise</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.cdnfonts.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!--
+      Vonique (fonte de display da marca) sai do bundle CSS de propósito: como
+      @import dentro do index.css ela virava download em cadeia e segurava o
+      primeiro render. Aqui carrega em paralelo e só é aplicada quando chega.
+    -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.cdnfonts.com/css/vonique-43"
+      media="print"
+      onload="this.media='all'"
+    >
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/vonique-43">
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

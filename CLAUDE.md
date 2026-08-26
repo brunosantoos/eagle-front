@@ -91,10 +91,28 @@ Gating: `AdminAuthProvider` expõe `role`; `AdminDashboard` filtra `allowedSecti
 
 Componente reutilizável `src/components/admin/ImageUploader.tsx`. NÃO mostra URL pro usuário — só preview + botão trocar + "Recortar imagem". Upload automático ao escolher arquivo, via `src/lib/upload.ts` (`uploadFile`) que chama `POST /api/upload` no back.
 
+**Compressão:** `src/lib/imageCompress.ts` reduz a imagem no navegador (máx. 2560px, WebP q82) antes
+de subir, e o backend comprime de novo o que passar direto (`eagle-back/src/lib/imageOptimize.ts`).
+`uploadFileDetailed()` devolve `originalSize`/`finalSize`/`compressed`; `describeCompression()` monta
+o texto "9.15 MB → 180 KB (-98%)" mostrado no painel. Falha em qualquer etapa manda o arquivo
+original — o upload nunca depende da compressão ter dado certo.
+
 **Regra:** o conteúdo grava sempre o caminho **relativo** (`/uploads/<arquivo>`). O host do backend entra
 só no render, com `resolveMediaUrl()` de `src/lib/mediaUrl.ts`. Todo `<img>`/`<video>` que exibe mídia do
 `SiteContent` passa por ela — inclusive previews do admin. Gravar URL absoluta quebra o site quando o
 domínio muda (era a causa do bug "mídias não replicam").
+
+## Comprimir o acervo já enviado
+
+Botão **Comprimir imagens já enviadas** em Admin > Mídias (`UploadsOptimizer` em
+`AdminMediaPanel.tsx`), sobre o router `mediaLibrary` (`contentProcedure`).
+
+Dois passos de propósito — **Analisar** (simulação, não escreve nada) e **Comprimir agora** —
+porque reescrever imagem não tem desfazer. Nome e extensão são preservados: o `SiteContent` guarda o
+caminho do arquivo, e trocar a extensão quebraria as referências do site.
+
+O mesmo trabalho pela linha de comando: `make uploads-optimize` / `make uploads-optimize-apply`.
+A lógica é única, em `eagle-back/src/lib/optimizeUploads.ts`.
 
 ## Armazenamento de mídia
 
@@ -128,6 +146,51 @@ origem (painel/env). Campo de chave vazio no save = mantém a atual; há botão 
 `content.privacyPolicy` e `content.termsOfUse`, editado no Admin em "Menu e rodapé" (abas
 "Política de privacidade" e "Termos de uso").
 
+## Tipografia
+
+Catálogo em `src/lib/fonts.ts` — **adicionar fonte = incluir uma entrada em `FONT_CATALOG`**, nada
+mais. Todas as fontes da lista têm acentuação completa (`subset=latin,latin-ext`); é o requisito que
+originou o catálogo.
+
+- `content.typography` (`heading` / `body` / `display`) guarda ids do catálogo, editado em
+  **Admin > Tipografia** (`AdminTypographyPanel.tsx`).
+- `useSiteFonts()` (chamado no `SiteContentProvider`) escreve `--font-sans`, `--font-heading` e
+  `--font-vonique` no elemento raiz — as mesmas variáveis do `@theme`, então `font-sans`,
+  `font-heading` e `font-vonique` seguem a configuração sem tocar em componente nenhum.
+- **Nenhuma fonte é carregada de entrada.** `ensureFontsLoaded()` injeta o `<link>` sob demanda;
+  `collectUsedFontIds()` varre o conteúdo procurando `font-family:` para descobrir o que a página
+  precisa. Inter e Montserrat são exceção: vêm por `<link>` estático no `index.html` (estão em toda
+  página) e já entram marcadas como carregadas.
+- No backend o campo é **opcional** no zod — conteúdo salvo antes desta versão continua válido e o
+  `mergeSiteContent` completa com o padrão.
+
 ## RichTextEditor
 
-Tiptap com `StarterKit` + `TextAlign` + `TextStyle` + `FontFamily` + `Underline`. Font picker custom renderiza opções na própria fonte. Adicionar fonte = editar `FONT_OPTIONS` em `components/admin/RichTextEditor.tsx`.
+Tiptap com `StarterKit` + `TextAlign` + `TextStyle` + `FontFamily` + `Underline`. Font picker custom
+lista o `FONT_CATALOG` agrupado por categoria, cada nome desenhado na própria fonte.
+
+**É memoizado** (`memo` com comparador em `value`/`placeholder`, `onChange` numa ref). Sem isso cada
+tecla digitada rodava `getHTML()` — serialização do documento inteiro — em todos os editores da
+seção, e era a causa da lentidão do painel. `ImageUploader` e `VideoUploader` são memoizados pelo
+mesmo motivo. Se for passar callback novo por render, ele **não** pode entrar no comparador.
+
+## Editor de recorte — proporção do campo
+
+`ImageCropModal` recebe `aspect` com a proporção **exata** do espaço onde a imagem aparece no site e
+monta o preset "Campo do site", pré-selecionado. As proporções reais vivem em `FIELD_META.framing`
+(`AdminMediaPanel.tsx`) e nos `aspect=` dos `ImageUploader`.
+
+Antes o modal arredondava a proporção para o preset genérico mais próximo (16:9, 4:3, 1:1, 4:5,
+9:16) — um campo 3:4 abria em 4:5 e o enquadramento nunca fechava com o site. **Ao mudar um layout
+que exibe mídia, atualize a proporção aqui junto.**
+
+## Leads — lixeira, situação e cronômetro
+
+- Excluir no quadro é **soft delete** (`deletedAt`): vai para a aba **Lixeira** e pode ser
+  restaurado por 30 dias (`TRASH_RETENTION_DAYS`, espelhado no front). O expurgo roda nas queries de
+  listagem (`purgeExpiredTrash`, throttle de 1h) — não há agendador na aplicação.
+- `delete`/`restore` são `leadsProcedure` (admin e user); `purge`/`purgeAll` são `adminProcedure`.
+- A **situação** de um contato (`responseState`) é **derivada**, nunca gravada: `respondido` pelo
+  status, `em atraso` após `RESPONSE_SLA_DAYS` (5) dias sem resposta, senão `a responder`. Gravar
+  isso deixaria o valor velho sozinho com o passar dos dias.
+- `respondedAt` é carimbado ao entrar em "respondido" e limpo ao sair.

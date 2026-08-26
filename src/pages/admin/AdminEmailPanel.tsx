@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
+  ExternalLink,
   Eye,
   EyeOff,
   KeyRound,
@@ -34,6 +36,97 @@ const EMPTY_FORM: FormState = {
   replyTo: '',
   siteUrl: '',
 };
+
+
+/** Passo a passo da configuração — o painel é o lugar onde a dúvida aparece. */
+function SetupGuide({ domain }: { domain: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-eagle-black/40 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-900/40 transition-colors"
+      >
+        <span className="text-sm font-heading font-semibold text-white">
+          Como configurar o envio (passo a passo)
+        </span>
+        <ChevronDown
+          size={16}
+          className={`text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-4 text-sm text-zinc-400 leading-relaxed border-t border-zinc-800/80 pt-4">
+          <ol className="space-y-3 list-decimal pl-4">
+            <li>
+              Crie uma conta em{' '}
+              <a
+                href="https://resend.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-eagle-gold hover:underline inline-flex items-center gap-1"
+              >
+                resend.com <ExternalLink size={11} />
+              </a>{' '}
+              (o plano gratuito cobre 3.000 e-mails por mês).
+            </li>
+            <li>
+              Em <span className="text-zinc-200">Domains</span>, adicione{' '}
+              <span className="text-zinc-200">{domain}</span>. O Resend mostra
+              três registros de DNS — <span className="text-zinc-200">SPF</span>,{' '}
+              <span className="text-zinc-200">DKIM</span> e{' '}
+              <span className="text-zinc-200">DMARC</span>.
+            </li>
+            <li>
+              Cadastre esses três registros no painel de DNS de quem hospeda o
+              domínio e espere a verificação virar{' '}
+              <span className="text-emerald-300">Verified</span> (costuma levar
+              alguns minutos, pode levar até 24h).
+              <p className="text-xs text-amber-200/90 mt-1.5">
+                Sem esse passo o e-mail até sai, mas cai no spam — é o item que
+                mais causa &quot;o cliente não recebeu&quot;.
+              </p>
+            </li>
+            <li>
+              Em <span className="text-zinc-200">API Keys</span>, crie uma chave
+              com permissão de envio e cole no campo acima. A chave aparece uma
+              única vez no Resend.
+            </li>
+            <li>
+              Preencha o <span className="text-zinc-200">e-mail remetente</span>{' '}
+              com um endereço do domínio verificado (ex.:{' '}
+              <span className="text-zinc-200">contato@{domain}</span>) — não use
+              Gmail ou Hotmail aqui, o Resend recusa.
+            </li>
+            <li>
+              Ligue o envio, salve e use{' '}
+              <span className="text-zinc-200">Enviar teste</span>. O erro que
+              voltar é o erro cru do Resend:
+              <ul className="list-disc pl-5 mt-1.5 space-y-1 text-xs text-zinc-500">
+                <li>
+                  <span className="text-zinc-300">401</span> — chave inválida ou
+                  copiada pela metade.
+                </li>
+                <li>
+                  <span className="text-zinc-300">403</span> — remetente de
+                  domínio não verificado.
+                </li>
+                <li>
+                  <span className="text-zinc-300">422</span> — algum campo de
+                  e-mail vazio ou mal formatado.
+                </li>
+              </ul>
+            </li>
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AdminEmailPanel() {
   const { success, error } = useToast();
@@ -133,6 +226,12 @@ export function AdminEmailPanel() {
               normalmente — só não sai e-mail de confirmação.
             </p>
           )}
+
+          <SetupGuide
+            domain={
+              form.fromEmail.split('@')[1]?.trim() || 'eagleacademia.com.br'
+            }
+          />
 
           <div className="rounded-xl border border-zinc-800 bg-eagle-black/40 p-4 space-y-3">
             <label className={lbCls}>
