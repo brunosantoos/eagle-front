@@ -12,7 +12,7 @@ import { Button } from "../components/ui/Button";
 import { useSiteContent } from "../context/SiteContentProvider";
 import { useToast } from "../context/ToastProvider";
 import { resolveCardIcon } from "../lib/cardIcons";
-import { resolveMediaUrl } from "../lib/mediaUrl";
+import { resolveMediaUrl, resolvePosterUrl } from "../lib/mediaUrl";
 import { formatPhone } from "../lib/phone";
 import { trpc } from "../lib/trpc";
 
@@ -133,7 +133,8 @@ export default function Franchise() {
                 loop
                 playsInline
                 controls
-                preload="auto"
+                poster={resolvePosterUrl(content.media.franchiseHeroVideo)}
+                preload="metadata"
               ></video>
             </motion.div>
           </div>

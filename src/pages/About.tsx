@@ -108,6 +108,8 @@ export default function About() {
           <img
             src={resolveMediaUrl(content.media.aboutHeroBg)}
             alt="Eagle Center Fitness Environment"
+            fetchPriority="high"
+            decoding="async"
             className="w-full h-full object-cover"
             style={blurStyle(heroEffect)}
             referrerPolicy="no-referrer"
@@ -161,6 +163,8 @@ export default function About() {
               <img
                 src={resolveMediaUrl(content.media.aboutStoryImage)}
                 alt="Premium Gym Environment"
+                loading="lazy"
+                decoding="async"
                 className="w-full"
                 style={blurStyle(storyEffect)}
                 referrerPolicy="no-referrer"
@@ -198,6 +202,8 @@ export default function About() {
                 <img
                   src={resolveMediaUrl(content.media.aboutPillarsImage)}
                   alt="Pilares da Marca Eagle Center"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover"
                   style={blurStyle(pillarsEffect)}
                   referrerPolicy="no-referrer"

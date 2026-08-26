@@ -83,3 +83,22 @@ export function toStoredMediaUrl(url: string): string {
   }
   return value;
 }
+
+/**
+ * Poster (primeiro quadro) dos vídeos que vêm em `public/`.
+ *
+ * Sem poster o hero fica preto até o vídeo baixar. Só os vídeos que já têm
+ * quadro gerado entram aqui — para upload do painel não existe poster e o
+ * `<video>` fica sem o atributo, que é o comportamento antigo.
+ */
+const PUBLIC_VIDEO_POSTERS: Record<string, string> = {
+  '/video.mp4': '/video-poster.jpg',
+  '/franquia.mp4': '/franquia-poster.jpg',
+};
+
+export function resolvePosterUrl(
+  videoUrl: string | null | undefined,
+): string | undefined {
+  if (!videoUrl) return undefined;
+  return PUBLIC_VIDEO_POSTERS[videoUrl.trim()];
+}

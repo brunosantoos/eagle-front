@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { useSiteContent } from "../context/SiteContentProvider";
-import { resolveMediaUrl } from "../lib/mediaUrl";
+import { resolveMediaUrl, resolvePosterUrl } from "../lib/mediaUrl";
 import { blurStyle, getMediaEffect, MediaMask } from "../lib/mediaEffects";
 
 function HeroImageCarousel({ images }: { images: string[] }) {
@@ -143,6 +143,9 @@ export default function Home() {
               src={resolveMediaUrl(heroImageUrl)}
               alt=""
               referrerPolicy="no-referrer"
+              // Hero: primeira imagem visível, nunca lazy.
+              fetchPriority="high"
+              decoding="async"
               className="w-full h-full object-cover"
             />
           ) : heroMedia.type === "carousel" && heroCarouselImages.length > 0 ? (
@@ -154,6 +157,10 @@ export default function Home() {
               loop
               muted
               playsInline
+              // Poster pinta o hero no primeiro frame de render; sem ele a tela
+              // fica preta até o vídeo chegar.
+              poster={resolvePosterUrl(heroVideoUrl)}
+              preload="metadata"
               className="w-full h-full object-cover"
             >
               <source src={resolveMediaUrl(heroVideoUrl)} type="video/mp4" />
@@ -175,6 +182,8 @@ export default function Home() {
           <img
             src={resolveMediaUrl(content.media.homeSecondHeroBg)}
             alt="Premium Gym Interior"
+            loading="lazy"
+            decoding="async"
             className="w-full h-full"
             style={{
               objectFit: secondHero.objectFit,
@@ -300,6 +309,8 @@ export default function Home() {
               <img
                 src={resolveMediaUrl(content.media.homeExperienceImage)}
                 alt="Personal Trainer guiding client"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
                 style={blurStyle(experienceEffect)}
                 referrerPolicy="no-referrer"
@@ -353,6 +364,8 @@ export default function Home() {
                   <img
                     src={resolveMediaUrl(workout.img)}
                     alt={workout.title}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform duration-1000 group-hover/card:scale-105"
                     referrerPolicy="no-referrer"
                   />
@@ -432,6 +445,8 @@ export default function Home() {
               <img
                 src={resolveMediaUrl(content.media.homeFranchiseTeaserImage)}
                 alt="Franquia Eagle Center"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
                 style={blurStyle(teaserEffect)}
                 referrerPolicy="no-referrer"
