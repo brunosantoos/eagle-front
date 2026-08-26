@@ -132,6 +132,19 @@ export type SiteContent = {
     about: string;
     franchise: string;
   };
+  /**
+   * Fontes do site — ids do catálogo em `lib/fonts.ts`, aplicados em tempo de
+   * execução nas variáveis CSS (`--font-sans`, `--font-heading`,
+   * `--font-vonique`). Editado no Admin em "Tipografia".
+   */
+  typography: {
+    /** Títulos (`font-heading`). */
+    heading: string;
+    /** Texto corrido (`font-sans`). */
+    body: string;
+    /** Destaque/logotipo (`font-vonique`). */
+    display: string;
+  };
   /** Página /privacidade — editada no Admin em "Menu e rodapé". */
   privacyPolicy: {
     title: string;
@@ -279,6 +292,11 @@ export const defaultSiteContent: SiteContent = {
     home: 'Home',
     about: 'Sobre Nós',
     franchise: 'Seja um Franqueado',
+  },
+  typography: {
+    heading: 'montserrat',
+    body: 'inter',
+    display: 'vonique',
   },
   privacyPolicy: {
     title: 'Política de Privacidade',

@@ -16,6 +16,7 @@ import {
   type SiteContent,
 } from '../lib/siteContent';
 import { trpc } from '../lib/trpc';
+import { useSiteFonts } from '../lib/useSiteFonts';
 
 type SaveCallbacks = {
   onSuccess?: () => void;
@@ -97,6 +98,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     }
     resetMutation.mutate();
   }, [resetMutation]);
+
+  // Tipografia do painel vira variável CSS aqui, no ponto mais alto que já
+  // conhece o conteúdo — assim vale para o site e para o preview do admin.
+  useSiteFonts(content);
 
   const value = useMemo(
     () => ({ content, setContent, resetContent, dbLoaded: dbData !== undefined }),
