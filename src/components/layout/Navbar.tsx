@@ -1,6 +1,8 @@
 import { useSiteContent } from "@/src/context/SiteContentProvider";
 import { cn } from "@/src/lib/utils";
 import { resolveMediaUrl } from "@/src/lib/mediaUrl";
+import { InstagramIcon } from "@/src/components/ui/InstagramIcon";
+import { resolveSocialHref } from "@/src/lib/socialIcons";
 import { Menu, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -23,6 +25,21 @@ export function Navbar() {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
+
+  /**
+   * Instagram do menu — reaproveita o link já cadastrado no rodapé
+   * (Admin > Menu e rodapé > Redes sociais). Sem link cadastrado, o ícone
+   * simplesmente não aparece, mesma regra dos outros contatos do rodapé.
+   */
+  const instagramUrl = useMemo(
+    () =>
+      resolveSocialHref(
+        content.footer.socialLinks.find(
+          (s) => s.platform === "instagram" && s.url.trim() !== "",
+        )?.url ?? "",
+      ),
+    [content.footer.socialLinks],
+  );
 
   const navLinks = useMemo(
     () => [
@@ -48,10 +65,18 @@ export function Navbar() {
             !isScrolled && "opacity-100", // Logo is always visible now
           )}
         >
-          <img src={resolveMediaUrl(content.media.navLogo)} alt="Logo" className="w-20" />
+          <img
+            src={resolveMediaUrl(content.media.navLogo)}
+            alt="Logo"
+            fetchPriority="high"
+            decoding="async"
+            className="w-20"
+          />
           <img
             src={resolveMediaUrl(content.media.navEagle)}
             alt="Logo"
+            fetchPriority="high"
+            decoding="async"
             className="w-36 sm:w-44 md:w-48 lg:w-52"
           />
         </Link>
@@ -99,17 +124,43 @@ export function Navbar() {
               </Link>
             );
           })}
+
+          {instagramUrl && (
+            <a
+              href={instagramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram da Eagle Center Fitness"
+              title="Siga no Instagram"
+              className="my-auto shrink-0 transition-transform duration-300 hover:scale-110"
+            >
+              <InstagramIcon size={32} />
+            </a>
+          )}
         </div>
 
         {/* Mobile Menu Toggle */}
-        <button
-          className={cn(
-            "md:hidden transition-colors hover:text-eagle-red text-black",
+        <div className="md:hidden flex items-center gap-3">
+          {instagramUrl && (
+            <a
+              href={instagramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram da Eagle Center Fitness"
+              title="Siga no Instagram"
+              className="shrink-0"
+            >
+              <InstagramIcon size={28} />
+            </a>
           )}
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
-        </button>
+          <button
+            className={cn("transition-colors hover:text-eagle-red text-black")}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Abrir menu"
+          >
+            {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Nav */}

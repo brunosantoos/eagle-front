@@ -40,3 +40,18 @@ export function resolveSocialIcon(platform: string): LucideIcon {
 export function resolveSocialLabel(platform: string): string {
   return SOCIAL_PLATFORMS.find((p) => p.value === platform)?.label ?? platform;
 }
+
+/**
+ * URL pronta para `href`.
+ *
+ * O painel aceita o endereço colado como veio ("instagram.com/eagle"), e sem
+ * protocolo o navegador trata isso como caminho relativo — o link levaria para
+ * `meusite.com.br/instagram.com/eagle`. Aqui o `https://` entra quando falta.
+ */
+export function resolveSocialHref(url: string): string {
+  const value = url.trim();
+  if (!value) return '';
+  // `mailto:`, `tel:` e afins passam intactos.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return value;
+  return `https://${value.replace(/^\/+/, '')}`;
+}

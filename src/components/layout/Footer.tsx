@@ -1,8 +1,13 @@
 import { useSiteContent } from "@/src/context/SiteContentProvider";
 import { cn } from "@/src/lib/utils";
-import { resolveSocialIcon, resolveSocialLabel } from "@/src/lib/socialIcons";
+import {
+  resolveSocialHref,
+  resolveSocialIcon,
+  resolveSocialLabel,
+} from "@/src/lib/socialIcons";
 import { resolveMediaUrl } from "@/src/lib/mediaUrl";
-import { Mail, MapPin, Phone } from "lucide-react";
+import { Check, Copy, Mail, MapPin, Phone } from "lucide-react";
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 /** Só dígitos e '+' — formato aceito por tel:. */
@@ -23,6 +28,8 @@ function mapsHref(mapsUrl: string, line1: string, line2: string) {
 export function Footer() {
   const { content } = useSiteContent();
   const location = useLocation();
+  /** Feedback do botão de copiar — o `mailto:` não avisa nada se falhar. */
+  const [emailCopied, setEmailCopied] = useState(false);
   const isHome = location.pathname === "/";
   // Link vazio não vira ícone no site — é assim que se "esconde" uma rede.
   const socialLinks = content.footer.socialLinks.filter((s) => s.url.trim() !== "");
@@ -49,6 +56,8 @@ export function Footer() {
               <img
                 src={resolveMediaUrl(content.media.footerLogo)}
                 alt="Logo"
+                loading="lazy"
+                decoding="async"
                 className="w-24 mx-auto"
               />
             </Link>
@@ -75,7 +84,7 @@ export function Footer() {
                     return (
                       <a
                         key={i}
-                        href={s.url}
+                        href={resolveSocialHref(s.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={label}
@@ -195,7 +204,7 @@ export function Footer() {
                 </li>
               )}
               {email.trim() && (
-                <li>
+                <li className="flex items-center gap-2">
                   <a
                     href={`mailto:${email.trim()}`}
                     aria-label={`Enviar e-mail para ${email}`}
@@ -204,6 +213,30 @@ export function Footer() {
                     <Mail size={18} className="text-eagle-gold shrink-0" />
                     <span>{email}</span>
                   </a>
+                  {/*
+                    O `mailto:` só funciona em quem tem app de e-mail padrão
+                    configurado — em muito desktop o clique não faz nada. O botão
+                    de copiar é a saída para esse caso.
+                  */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard
+                        ?.writeText(email.trim())
+                        .then(() => {
+                          setEmailCopied(true);
+                          setTimeout(() => setEmailCopied(false), 2000);
+                        })
+                        .catch(() => {
+                          /* sem permissão de área de transferência */
+                        });
+                    }}
+                    aria-label="Copiar endereço de e-mail"
+                    title={emailCopied ? "E-mail copiado" : "Copiar e-mail"}
+                    className="shrink-0 p-1 rounded text-eagle-muted hover:text-eagle-gold transition-colors"
+                  >
+                    {emailCopied ? <Check size={14} /> : <Copy size={14} />}
+                  </button>
                 </li>
               )}
             </ul>
