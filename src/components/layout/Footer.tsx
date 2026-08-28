@@ -6,6 +6,8 @@ import {
   resolveSocialLabel,
 } from "@/src/lib/socialIcons";
 import { resolveMediaUrl } from "@/src/lib/mediaUrl";
+import { scrollTopIfSamePath } from "@/src/lib/sameRouteScroll";
+import { SiteText } from "@/src/components/site/SiteText";
 import { Check, Copy, Mail, MapPin, Phone } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -52,7 +54,11 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           {/* Brand */}
           <div className="col-span-1 md:col-span-1 ">
-            <Link to="/" className="flex items-center gap-2 mb-6 ">
+            <Link
+              to="/"
+              onClick={scrollTopIfSamePath(location.pathname, "/")}
+              className="flex items-center gap-2 mb-6 "
+            >
               <img
                 src={resolveMediaUrl(content.media.footerLogo)}
                 alt="Logo"
@@ -61,21 +67,27 @@ export function Footer() {
                 className="w-24 mx-auto"
               />
             </Link>
-            <p
+            <SiteText
+              as="p"
+              path="footer.tagline"
+              html
               className="text-eagle-muted text-sm leading-relaxed mb-6"
-              dangerouslySetInnerHTML={{ __html: content.footer.tagline }}
             />
             {socialLinks.length > 0 && (
               <div>
                 {content.footer.socialTitle && (
-                  <h4 className="font-heading font-semibold text-eagle-light mb-2 uppercase tracking-wider text-xs">
-                    {content.footer.socialTitle}
-                  </h4>
+                  <SiteText
+                    as="h4"
+                    path="footer.socialTitle"
+                    className="font-heading font-semibold text-eagle-light mb-2 uppercase tracking-wider text-xs"
+                  />
                 )}
                 {content.footer.socialDescription && (
-                  <p className="text-eagle-muted text-xs leading-relaxed mb-3">
-                    {content.footer.socialDescription}
-                  </p>
+                  <SiteText
+                    as="p"
+                    path="footer.socialDescription"
+                    className="text-eagle-muted text-xs leading-relaxed mb-3"
+                  />
                 )}
                 <div className="flex flex-wrap gap-2.5">
                   {socialLinks.map((s, i) => {
@@ -103,32 +115,40 @@ export function Footer() {
 
           {/* Links */}
           <div>
-            <h4 className="font-heading font-semibold text-eagle-light mb-6 uppercase tracking-wider text-sm">
-              {content.footer.navTitle}
-            </h4>
+            <SiteText
+              as="h4"
+              path="footer.navTitle"
+              className="font-heading font-semibold text-eagle-light mb-6 uppercase tracking-wider text-sm"
+            />
             <ul className="space-y-4">
               <li>
                 <Link
                   to="/"
+
+                  onClick={scrollTopIfSamePath(location.pathname, "/")}
                   className="text-eagle-muted hover:text-eagle-red transition-colors text-sm"
                 >
-                  {content.footer.linkHome}
+                  <SiteText path="footer.linkHome" />
                 </Link>
               </li>
               <li>
                 <Link
                   to="/sobre"
+
+                  onClick={scrollTopIfSamePath(location.pathname, "/sobre")}
                   className="text-eagle-muted hover:text-eagle-red transition-colors text-sm"
                 >
-                  {content.footer.linkAbout}
+                  <SiteText path="footer.linkAbout" />
                 </Link>
               </li>
               <li>
                 <Link
                   to="/franquia"
+
+                  onClick={scrollTopIfSamePath(location.pathname, "/franquia")}
                   className="text-eagle-muted hover:text-eagle-red transition-colors text-sm"
                 >
-                  {content.footer.linkFranchise}
+                  <SiteText path="footer.linkFranchise" />
                 </Link>
               </li>
             </ul>
@@ -136,32 +156,40 @@ export function Footer() {
 
           {/* Franchise */}
           <div>
-            <h4 className="font-heading font-semibold text-eagle-light mb-6 uppercase tracking-wider text-sm">
-              {content.footer.franchiseColumnTitle}
-            </h4>
+            <SiteText
+              as="h4"
+              path="footer.franchiseColumnTitle"
+              className="font-heading font-semibold text-eagle-light mb-6 uppercase tracking-wider text-sm"
+            />
             <ul className="space-y-4">
               <li>
                 <Link
                   to="/franquia"
+
+                  onClick={scrollTopIfSamePath(location.pathname, "/franquia")}
                   className="text-eagle-muted hover:text-eagle-red transition-colors text-sm"
                 >
-                  {content.footer.franchiseLink1}
+                  <SiteText path="footer.franchiseLink1" />
                 </Link>
               </li>
               <li>
                 <Link
                   to="/franquia"
+
+                  onClick={scrollTopIfSamePath(location.pathname, "/franquia")}
                   className="text-eagle-muted hover:text-eagle-red transition-colors text-sm"
                 >
-                  {content.footer.franchiseLink2}
+                  <SiteText path="footer.franchiseLink2" />
                 </Link>
               </li>
               <li>
                 <Link
                   to="/franquia"
+
+                  onClick={scrollTopIfSamePath(location.pathname, "/franquia")}
                   className="text-eagle-muted hover:text-eagle-red transition-colors text-sm"
                 >
-                  {content.footer.franchiseLink3}
+                  <SiteText path="footer.franchiseLink3" />
                 </Link>
               </li>
             </ul>
@@ -169,9 +197,11 @@ export function Footer() {
 
           {/* Contact */}
           <div>
-            <h4 className="font-heading font-semibold text-eagle-light mb-6 uppercase tracking-wider text-sm">
-              {content.footer.contactTitle}
-            </h4>
+            <SiteText
+              as="h4"
+              path="footer.contactTitle"
+              className="font-heading font-semibold text-eagle-light mb-6 uppercase tracking-wider text-sm"
+            />
             <ul className="space-y-4">
               {hasAddress && (
                 <li>
@@ -184,9 +214,9 @@ export function Footer() {
                   >
                     <MapPin size={18} className="text-eagle-gold shrink-0 mt-0.5" />
                     <span>
-                      {addressLine1}
+                      <SiteText path="footer.addressLine1" />
                       {addressLine1 && addressLine2 && <br />}
-                      {addressLine2}
+                      <SiteText path="footer.addressLine2" />
                     </span>
                   </a>
                 </li>
@@ -199,7 +229,7 @@ export function Footer() {
                     className="flex items-center gap-3 text-eagle-muted hover:text-eagle-red transition-colors text-sm"
                   >
                     <Phone size={18} className="text-eagle-gold shrink-0" />
-                    <span>{phone}</span>
+                    <SiteText path="footer.phone" />
                   </a>
                 </li>
               )}
@@ -211,7 +241,7 @@ export function Footer() {
                     className="flex items-center gap-3 text-eagle-muted hover:text-eagle-red transition-colors text-sm break-all"
                   >
                     <Mail size={18} className="text-eagle-gold shrink-0" />
-                    <span>{email}</span>
+                    <SiteText path="footer.email" />
                   </a>
                   {/*
                     O `mailto:` só funciona em quem tem app de e-mail padrão
@@ -244,22 +274,26 @@ export function Footer() {
         </div>
 
         <div className="border-t border-eagle-gray pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-eagle-muted text-xs">
+          <SiteText as="p" path="footer.copyrightName" className="text-eagle-muted text-xs">
             © {new Date().getFullYear()} {content.footer.copyrightName}. Todos
             os direitos reservados.
-          </p>
+          </SiteText>
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             <Link
               to="/termos"
+
+              onClick={scrollTopIfSamePath(location.pathname, "/termos")}
               className="text-eagle-muted hover:text-eagle-light text-xs transition-colors"
             >
-              {content.footer.terms}
+              <SiteText path="footer.terms" />
             </Link>
             <Link
               to="/privacidade"
+
+              onClick={scrollTopIfSamePath(location.pathname, "/privacidade")}
               className="text-eagle-muted hover:text-eagle-light text-xs transition-colors"
             >
-              {content.footer.privacy}
+              <SiteText path="footer.privacy" />
             </Link>
           </div>
         </div>

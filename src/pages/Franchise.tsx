@@ -13,6 +13,7 @@ import { useSiteContent } from "../context/SiteContentProvider";
 import { useToast } from "../context/ToastProvider";
 import { resolveCardIcon } from "../lib/cardIcons";
 import { resolveMediaUrl, resolvePosterUrl } from "../lib/mediaUrl";
+import { SiteText } from "../components/site/SiteText";
 import { formatPhone } from "../lib/phone";
 import { trpc } from "../lib/trpc";
 
@@ -85,7 +86,7 @@ export default function Franchise() {
 
   return (
     <div className="w-full pt-18">
-      <section className="relative min-h-[115vh] pt-20 lg:pt-20 pb-20 bg-gradient-to-l from-zinc-700 via-eagle-dark to-black border-b border-eagle-gray overflow-hidden">
+      <section className="relative min-h-[115vh] pt-20 lg:pt-20 pb-20 bg-gradient-to-l from-zinc-700 via-eagle-dark to-black overflow-hidden">
         <div className="absolute right-0 top-0 w-full lg:w-1/2 h-full opacity-20 lg:opacity-30 pointer-events-none">
           <div className="absolute inset-0 z-10 bg-gradient-to-l from-eagle-black to-transparent"></div>
         </div>
@@ -98,16 +99,22 @@ export default function Franchise() {
               transition={{ duration: 0.6 }}
               className="lg:col-span-6 pt-0 lg:pt-8"
             >
-              <span className="text-eagle-red font-sans tracking-[0.2em] uppercase text-sm font-semibold mb-6 block">
-                {f.heroEyebrow}
-              </span>
+              <SiteText
+                path="franchise.heroEyebrow"
+                className="text-eagle-red font-sans tracking-[0.2em] uppercase text-sm font-semibold mb-6 block"
+              />
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold leading-tight mb-8 text-eagle-red">
-                {f.heroTitleBefore}
-                <span className="text-eagle-gold">{f.heroTitleHighlight}</span>
+                <SiteText path="franchise.heroTitleBefore" />
+                <SiteText
+                  path="franchise.heroTitleHighlight"
+                  className="text-eagle-gold"
+                />
               </h1>
-              <p
+              <SiteText
+                as="p"
+                path="franchise.heroBody"
+                html
                 className="text-lg text-eagle-light/80 leading-relaxed mb-10 max-w-xl"
-                dangerouslySetInnerHTML={{ __html: f.heroBody }}
               />
               <Button
                 asChild
@@ -115,7 +122,9 @@ export default function Franchise() {
                 variant="default"
                 className="px-10 shadow-xl shadow-eagle-red/20"
               >
-                <a href="#formulario">{f.heroCta}</a>
+                <a href="#formulario">
+                  <SiteText path="franchise.heroCta" />
+                </a>
               </Button>
             </motion.div>
 
@@ -141,15 +150,33 @@ export default function Franchise() {
         </div>
       </section>
 
-      <section className="py-24 bg-white">
+      {/*
+        Transição do hero escuro para a seção branca.
+        A camada de baixo repete o gradiente horizontal do hero, então o topo da
+        faixa tem exatamente a cor da borda de baixo dele em toda a largura; a
+        camada de cima leva isso até o branco. Sem as duas, o degradê só bate no
+        lado esquerdo e o corte continua aparecendo do lado direito.
+      */}
+      <div
+        aria-hidden
+        className="relative h-40 md:h-64 bg-gradient-to-l from-zinc-700 via-eagle-dark to-black"
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/55 to-white" />
+      </div>
+
+      <section className="pb-24 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-3xl md:text-4xl font-heading font-bold mb-6 text-eagle-black">
-              {f.whyTitle}
-            </h2>
-            <p
+            <SiteText
+              as="h2"
+              path="franchise.whyTitle"
+              className="text-3xl md:text-4xl font-heading font-bold mb-6 text-eagle-black"
+            />
+            <SiteText
+              as="p"
+              path="franchise.whyBody"
+              html
               className="text-gray-600 text-lg"
-              dangerouslySetInnerHTML={{ __html: f.whyBody }}
             />
           </div>
 
@@ -169,12 +196,18 @@ export default function Franchise() {
                     size={32}
                   />
                 </div>
-                <h3 className="text-xl font-heading font-semibold mb-4 text-eagle-black">
-                  {item.title}
-                </h3>
-                <p
+                <SiteText
+                  as="h3"
+                  path={`franchise.whyCards.${idx}.title`}
+                  value={item.title}
+                  className="text-xl font-heading font-semibold mb-4 text-eagle-black"
+                />
+                <SiteText
+                  as="p"
+                  path={`franchise.whyCards.${idx}.desc`}
+                  value={item.desc}
+                  html
                   className="text-gray-600 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: item.desc }}
                 />
               </motion.div>
             ))}
@@ -186,12 +219,16 @@ export default function Franchise() {
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
-              <h2 className="text-3xl md:text-4xl font-heading font-bold mb-8">
-                {f.supportTitle}
-              </h2>
-              <p
+              <SiteText
+                as="h2"
+                path="franchise.supportTitle"
+                className="text-3xl md:text-4xl font-heading font-bold mb-8"
+              />
+              <SiteText
+                as="p"
+                path="franchise.supportBody"
+                html
                 className="text-eagle-muted text-lg mb-10"
-                dangerouslySetInnerHTML={{ __html: f.supportBody }}
               />
 
               <ul className="space-y-8">
@@ -201,12 +238,18 @@ export default function Franchise() {
                       <item.icon className="text-eagle-gold" size={28} />
                     </div>
                     <div>
-                      <h4 className="font-heading font-semibold text-lg mb-2">
-                        {item.title}
-                      </h4>
-                      <p
+                      <SiteText
+                        as="h4"
+                        path={`franchise.supportItems.${idx}.title`}
+                        value={item.title}
+                        className="font-heading font-semibold text-lg mb-2"
+                      />
+                      <SiteText
+                        as="p"
+                        path={`franchise.supportItems.${idx}.desc`}
+                        value={item.desc}
+                        html
                         className="text-eagle-muted"
-                        dangerouslySetInnerHTML={{ __html: item.desc }}
                       />
                     </div>
                   </li>
@@ -215,9 +258,11 @@ export default function Franchise() {
             </div>
 
             <div className="bg-eagle-dark p-10 rounded-3xl shadow-2xl border border-eagle-gray">
-              <h3 className="text-2xl font-heading font-bold mb-6 text-center">
-                {f.numbersTitle}
-              </h3>
+              <SiteText
+                as="h3"
+                path="franchise.numbersTitle"
+                className="text-2xl font-heading font-bold mb-6 text-center"
+              />
               <div className="space-y-6">
                 {f.numbers.map((n, i) => {
                   const isLast = i === f.numbers.length - 1;
@@ -227,15 +272,25 @@ export default function Franchise() {
                       key={i}
                       className={`flex justify-between items-center ${isLast ? 'pb-2' : 'border-b border-eagle-gray/50 pb-4'}`}
                     >
-                      <span className="text-eagle-muted">{n.label}</span>
-                      <span className={`font-heading font-semibold ${valueCls}`}>{n.value}</span>
+                      <SiteText
+                        path={`franchise.numbers.${i}.label`}
+                        value={n.label}
+                        className="text-eagle-muted"
+                      />
+                      <SiteText
+                        path={`franchise.numbers.${i}.value`}
+                        value={n.value}
+                        className={`font-heading font-semibold ${valueCls}`}
+                      />
                     </div>
                   );
                 })}
               </div>
-              <p
+              <SiteText
+                as="p"
+                path="franchise.numbersDisclaimer"
+                html
                 className="text-xs text-eagle-muted mt-6 text-center italic"
-                dangerouslySetInnerHTML={{ __html: f.numbersDisclaimer }}
               />
             </div>
           </div>
@@ -248,12 +303,16 @@ export default function Franchise() {
       >
         <div className="container mx-auto px-6 max-w-4xl">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-heading font-bold mb-4">
-              {f.formTitle}
-            </h2>
-            <p
+            <SiteText
+              as="h2"
+              path="franchise.formTitle"
+              className="text-3xl md:text-4xl font-heading font-bold mb-4"
+            />
+            <SiteText
+              as="p"
+              path="franchise.formSubtitle"
+              html
               className="text-eagle-muted"
-              dangerouslySetInnerHTML={{ __html: f.formSubtitle }}
             />
           </div>
 
@@ -263,12 +322,12 @@ export default function Franchise() {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="space-y-2">
-                <label
+                <SiteText
+                  as="label"
                   htmlFor="name"
+                  path="franchise.labelName"
                   className="text-sm font-medium text-eagle-light/80"
-                >
-                  {f.labelName}
-                </label>
+                />
                 <input
                   type="text"
                   id="name"
@@ -281,12 +340,12 @@ export default function Franchise() {
                 />
               </div>
               <div className="space-y-2">
-                <label
+                <SiteText
+                  as="label"
                   htmlFor="email"
+                  path="franchise.labelEmail"
                   className="text-sm font-medium text-eagle-light/80"
-                >
-                  {f.labelEmail}
-                </label>
+                />
                 <input
                   type="email"
                   id="email"
@@ -299,12 +358,12 @@ export default function Franchise() {
                 />
               </div>
               <div className="space-y-2">
-                <label
+                <SiteText
+                  as="label"
                   htmlFor="phone"
+                  path="franchise.labelPhone"
                   className="text-sm font-medium text-eagle-light/80"
-                >
-                  {f.labelPhone}
-                </label>
+                />
                 <input
                   type="tel"
                   id="phone"
@@ -320,12 +379,12 @@ export default function Franchise() {
                 />
               </div>
               <div className="space-y-2">
-                <label
+                <SiteText
+                  as="label"
                   htmlFor="city"
+                  path="franchise.labelCity"
                   className="text-sm font-medium text-eagle-light/80"
-                >
-                  {f.labelCity}
-                </label>
+                />
                 <input
                   type="text"
                   id="city"
@@ -340,12 +399,12 @@ export default function Franchise() {
             </div>
 
             <div className="space-y-2 mb-8">
-              <label
+              <SiteText
+                as="label"
                 htmlFor="capital"
+                path="franchise.labelCapital"
                 className="text-sm font-medium text-eagle-light/80"
-              >
-                {f.labelCapital}
-              </label>
+              />
               <select
                 id="capital"
                 name="capital"
@@ -372,7 +431,11 @@ export default function Franchise() {
               disabled={createLead.isPending}
               className="w-full shadow-xl shadow-eagle-red/20"
             >
-              {createLead.isPending ? 'Enviando...' : f.submitButton}
+              {createLead.isPending ? (
+                'Enviando...'
+              ) : (
+                <SiteText path="franchise.submitButton" />
+              )}
             </Button>
           </form>
         </div>

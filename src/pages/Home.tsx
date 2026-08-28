@@ -6,6 +6,7 @@ import { Button } from "../components/ui/Button";
 import { useSiteContent } from "../context/SiteContentProvider";
 import { resolveMediaUrl, resolvePosterUrl } from "../lib/mediaUrl";
 import { blurStyle, getMediaEffect, MediaMask } from "../lib/mediaEffects";
+import { SiteText } from "../components/site/SiteText";
 
 function HeroImageCarousel({ images }: { images: string[] }) {
   const [index, setIndex] = useState(0);
@@ -214,16 +215,15 @@ export default function Home() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="max-w-4xl"
           >
-            <span
+            <SiteText
+              path="home.hero.eyebrow"
               className="text-eagle-gold font-sans tracking-[0.3em] uppercase text-sm md:text-base mb-6 block font-medium"
               style={
                 secondHero.eyebrowColor
                   ? { color: secondHero.eyebrowColor }
                   : undefined
               }
-            >
-              {content.home.hero.eyebrow}
-            </span>
+            />
             <h1
               className="text-5xl md:text-7xl font-heading font-bold text-eagle-red leading-tight mb-8 drop-shadow-2xl"
               style={
@@ -232,9 +232,10 @@ export default function Home() {
                   : undefined
               }
             >
-              {content.home.hero.titleLine1}
+              <SiteText path="home.hero.titleLine1" />
               <br className="hidden md:block" />
-              <span
+              <SiteText
+                path="home.hero.titleHighlight"
                 className={
                   secondHero.highlightColor
                     ? undefined
@@ -245,11 +246,12 @@ export default function Home() {
                     ? { color: secondHero.highlightColor }
                     : undefined
                 }
-              >
-                {content.home.hero.titleHighlight}
-              </span>
+              />
             </h1>
-            <p
+            <SiteText
+              as="p"
+              path="home.hero.subtitle"
+              html
               className={`text-lg md:text-xl text-eagle-light/80 font-light max-w-2xl mb-12 leading-relaxed drop-shadow-md ${
                 secondHero.textAlign === "center" ? "mx-auto" : ""
               }`}
@@ -258,7 +260,6 @@ export default function Home() {
                   ? { color: secondHero.subtitleColor }
                   : undefined
               }
-              dangerouslySetInnerHTML={{ __html: content.home.hero.subtitle }}
             />
           </motion.div>
         </div>
@@ -275,15 +276,18 @@ export default function Home() {
               transition={{ duration: 0.8 }}
             >
               <h2 className="text-3xl md:text-5xl font-heading font-bold mb-8 leading-tight">
-                {content.home.experience.titleLine1}
+                <SiteText path="home.experience.titleLine1" />
                 <br />
-                <span className="text-eagle-gold drop-shadow-lg">
-                  {content.home.experience.titleLine2}
-                </span>
+                <SiteText
+                  path="home.experience.titleLine2"
+                  className="text-eagle-gold drop-shadow-lg"
+                />
               </h2>
-              <p
+              <SiteText
+                as="p"
+                path="home.experience.body"
+                html
                 className="text-eagle-muted text-lg leading-relaxed mb-10"
-                dangerouslySetInnerHTML={{ __html: content.home.experience.body }}
               />
 
               <ul className="space-y-6">
@@ -293,7 +297,11 @@ export default function Home() {
                       className="text-eagle-gold shrink-0 mt-1 drop-shadow-md"
                       size={24}
                     />
-                    <span className="text-eagle-light/90 text-lg">{item}</span>
+                    <SiteText
+                      path={`home.experience.bullets.${index}`}
+                      value={item}
+                      className="text-eagle-light/90 text-lg"
+                    />
                   </li>
                 ))}
               </ul>
@@ -326,18 +334,18 @@ export default function Home() {
       <section className="py-32 bg-white relative overflow-hidden">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-4xl mx-auto mb-16">
-            <h2
+            <SiteText
+              as="h2"
+              path="home.carousel.title"
               className="text-3xl md:text-4xl font-vonique font-bold mb-4 text-eagle-black uppercase tracking-tight"
               style={carousel.titleColor ? { color: carousel.titleColor } : undefined}
-            >
-              {carousel.title}
-            </h2>
-            <p
+            />
+            <SiteText
+              as="p"
+              path="home.carousel.footnote"
               className="text-gray-500 text-sm italic"
               style={carousel.footnoteColor ? { color: carousel.footnoteColor } : undefined}
-            >
-              {carousel.footnote}
-            </p>
+            />
           </div>
 
           <div className="relative group max-w-[1400px] mx-auto">
@@ -356,7 +364,13 @@ export default function Home() {
               ref={scrollContainerRef}
               className="flex gap-6 md:gap-10 overflow-x-auto snap-x snap-mandatory pb-12 pt-4 px-[calc(50%-140px)] md:px-[calc(50%-190px)] hide-scrollbar"
             >
-              {displayWorkouts.map((workout, idx) => (
+              {displayWorkouts.map((workout, idx) => {
+                // O carrossel repete a lista três vezes para o giro ficar
+                // contínuo; a formatação pertence ao card original.
+                const cardIndex = workouts.length
+                  ? idx % workouts.length
+                  : idx;
+                return (
                 <div
                   key={`${workout.label}-${idx}`}
                   className="min-w-[280px] md:min-w-[380px] h-[480px] snap-center relative rounded-[2.5rem] shadow-xl overflow-hidden group/card border border-transparent hover:border-eagle-red/30 transition-all duration-500"
@@ -380,17 +394,20 @@ export default function Home() {
                   <div className="absolute bottom-0 left-0 w-full p-8 flex items-end">
                     <div className="flex items-center gap-4">
                       {/* Vertical Label */}
-                      <span
+                      <SiteText
+                        path={`home.workouts.${cardIndex}.label`}
+                        value={workout.label}
                         className="[writing-mode:vertical-rl] rotate-180 font-sans font-bold uppercase tracking-[0.3em] text-white/90 border-r-2 border-white/30 pr-3 leading-none"
                         style={{
                           fontSize: `${Math.min(32, Math.max(8, carousel.cardLabelFontSize))}px`,
                           ...(carousel.cardLabelColor ? { color: carousel.cardLabelColor } : {}),
                         }}
-                      >
-                        {workout.label}
-                      </span>
+                      />
                       {/* Main Title */}
-                      <h3
+                      <SiteText
+                        as="h3"
+                        path={`home.workouts.${cardIndex}.title`}
+                        value={workout.title}
                         className="font-vonique font-bold text-white leading-[1.1] break-words max-w-[200px] md:max-w-[280px]"
                         style={{
                           // clamp evita que um tamanho alto corte o texto no mobile
@@ -399,13 +416,12 @@ export default function Home() {
                           )}px, 5vw, ${Math.min(72, Math.max(12, carousel.cardTitleFontSize))}px)`,
                           ...(carousel.cardTitleColor ? { color: carousel.cardTitleColor } : {}),
                         }}
-                      >
-                        {workout.title}
-                      </h3>
+                      />
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Navigation Arrows */}
@@ -457,18 +473,22 @@ export default function Home() {
 
             {/* Right: Text and CTA */}
             <div className="text-left">
-              <span className="text-eagle-red font-sans tracking-[0.2em] uppercase text-sm font-semibold mb-6 block drop-shadow-md">
-                {content.home.franchiseTeaser.eyebrow}
-              </span>
+              <SiteText
+                path="home.franchiseTeaser.eyebrow"
+                className="text-eagle-red font-sans tracking-[0.2em] uppercase text-sm font-semibold mb-6 block drop-shadow-md"
+              />
               <h2 className="text-5xl md:text-6xl lg:text-7xl font-heading font-bold mb-8 drop-shadow-lg leading-tight">
-                {content.home.franchiseTeaser.titlePart1}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-500">
-                  {content.home.franchiseTeaser.titleGradient}
-                </span>
+                <SiteText path="home.franchiseTeaser.titlePart1" />
+                <SiteText
+                  path="home.franchiseTeaser.titleGradient"
+                  className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-500"
+                />
               </h2>
-              <p
+              <SiteText
+                as="p"
+                path="home.franchiseTeaser.body"
+                html
                 className="text-eagle-muted text-xl leading-relaxed mb-12"
-                dangerouslySetInnerHTML={{ __html: content.home.franchiseTeaser.body }}
               />
 
               <Button
@@ -477,7 +497,9 @@ export default function Home() {
                 variant="default"
                 className="h-16 px-12 text-lg shadow-xl shadow-eagle-red/20 hover:bg-eagle-red/80"
               >
-                <Link to="/franquia">{content.home.franchiseTeaser.cta}</Link>
+                <Link to="/franquia">
+                  <SiteText path="home.franchiseTeaser.cta" />
+                </Link>
               </Button>
 
             </div>

@@ -3,6 +3,8 @@ import { cn } from "@/src/lib/utils";
 import { resolveMediaUrl } from "@/src/lib/mediaUrl";
 import { InstagramIcon } from "@/src/components/ui/InstagramIcon";
 import { resolveSocialHref } from "@/src/lib/socialIcons";
+import { scrollTopIfSamePath } from "@/src/lib/sameRouteScroll";
+import { SiteText } from "@/src/components/site/SiteText";
 import { Menu, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -43,9 +45,9 @@ export function Navbar() {
 
   const navLinks = useMemo(
     () => [
-      { name: content.nav.home, path: "/" },
-      { name: content.nav.about, path: "/sobre" },
-      { name: content.nav.franchise, path: "/franquia" },
+      { name: content.nav.home, path: "/", field: "nav.home" },
+      { name: content.nav.about, path: "/sobre", field: "nav.about" },
+      { name: content.nav.franchise, path: "/franquia", field: "nav.franchise" },
     ],
     [content.nav],
   );
@@ -60,6 +62,7 @@ export function Navbar() {
         {/* Logo */}
         <Link
           to="/"
+          onClick={scrollTopIfSamePath(location.pathname, "/")}
           className={cn(
             "flex items-center gap-3 group transition-opacity duration-300 shrink-0",
             !isScrolled && "opacity-100", // Logo is always visible now
@@ -91,6 +94,7 @@ export function Navbar() {
                 <Link
                   key={link.path}
                   to={link.path}
+                  onClick={scrollTopIfSamePath(location.pathname, link.path)}
                   className={cn(
                     "group relative overflow-hidden px-6 py-2 rounded-xl text-lg uppercase font-bold tracking-wider transition-all duration-300 border border-transparent",
                     isScrolled
@@ -102,7 +106,7 @@ export function Navbar() {
                     aria-hidden="true"
                     className="pointer-events-none absolute inset-x-3 -bottom-1 h-2 rounded-full bg-eagle-gold/80 blur-md opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                   />
-                  {link.name}
+                  <SiteText path={link.field} value={link.name} />
                 </Link>
               );
             }
@@ -111,6 +115,7 @@ export function Navbar() {
               <Link
                 key={link.path}
                 to={link.path}
+                onClick={scrollTopIfSamePath(location.pathname, link.path)}
                 className={cn(
                   "text-xl uppercase font-semibold tracking-wider my-auto transition-colors hover:text-eagle-red",
                   location.pathname === link.path
@@ -120,7 +125,7 @@ export function Navbar() {
                       : "text-black",
                 )}
               >
-                {link.name}
+                <SiteText path={link.field} value={link.name} />
               </Link>
             );
           })}
@@ -173,6 +178,10 @@ export function Navbar() {
               <Link
                 key={link.path}
                 to={link.path}
+                onClick={(event) => {
+                  scrollTopIfSamePath(location.pathname, link.path)(event);
+                  setIsMobileMenuOpen(false);
+                }}
                 className={cn(
                   "text-xl uppercase font-semibold tracking-wider py-3",
                   !isFranchise && "border-b border-gray-100",
@@ -185,7 +194,7 @@ export function Navbar() {
                       : "",
                 )}
               >
-                {link.name}
+                <SiteText path={link.field} value={link.name} />
               </Link>
             );
           })}

@@ -7,6 +7,7 @@ import { trpc } from "../lib/trpc";
 import { resolveMediaUrl } from "../lib/mediaUrl";
 import { formatPhone } from "../lib/phone";
 import { blurStyle, getMediaEffect, MediaMask } from "../lib/mediaEffects";
+import { SiteText } from "../components/site/SiteText";
 
 function ContactForm() {
   const { success, error } = useToast();
@@ -83,21 +84,21 @@ export default function About() {
     () => [
       {
         icon: Award,
-        title: content.about.missionTitle,
-        desc: content.about.missionDesc,
+        titlePath: 'about.missionTitle',
+        descPath: 'about.missionDesc',
       },
       {
         icon: Target,
-        title: content.about.visionTitle,
-        desc: content.about.visionDesc,
+        titlePath: 'about.visionTitle',
+        descPath: 'about.visionDesc',
       },
       {
         icon: Heart,
-        title: content.about.valuesTitle,
-        desc: content.about.valuesDesc,
+        titlePath: 'about.valuesTitle',
+        descPath: 'about.valuesDesc',
       },
     ],
-    [content.about],
+    [],
   );
 
   return (
@@ -125,7 +126,10 @@ export default function About() {
         </div>
 
         <div className="container mx-auto relative z-10 text-center">
-          <motion.h1
+          <SiteText
+            as={motion.h1}
+            path="about.heroTitle"
+            html
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
@@ -135,7 +139,6 @@ export default function About() {
                 ? { color: content.about.heroTitleColor }
                 : undefined
             }
-            dangerouslySetInnerHTML={{ __html: content.about.heroTitle }}
           />
         </div>
       </section>
@@ -149,12 +152,20 @@ export default function About() {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <h2 className="text-4xl md:text-5xl font-vonique font-bold mb-8 text-eagle-red uppercase">
-                {content.about.storyTitle}
-              </h2>
+              <SiteText
+                as="h2"
+                path="about.storyTitle"
+                className="text-4xl md:text-5xl font-vonique font-bold mb-8 text-eagle-red uppercase"
+              />
               <div className="space-y-6 text-lg text-gray-700 leading-relaxed">
                 {content.about.storyParagraphs.map((p, i) => (
-                  <p key={i} dangerouslySetInnerHTML={{ __html: p }} />
+                  <SiteText
+                    key={i}
+                    as="p"
+                    path={`about.storyParagraphs.${i}`}
+                    value={p}
+                    html
+                  />
                 ))}
               </div>
             </motion.div>
@@ -178,23 +189,31 @@ export default function About() {
       <section className="py-32 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-heading font-bold text-eagle-red uppercase">
-              {content.about.pillarsTitle}
-            </h2>
+            <SiteText
+              as="h2"
+              path="about.pillarsTitle"
+              className="text-4xl md:text-5xl font-heading font-bold text-eagle-red uppercase"
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32">
             <div className="order-2 lg:order-1">
-              <p className="text-xl md:text-2xl text-gray-600 mb-6 leading-relaxed font-light lowercase">
-                {content.about.pillarsIntro}
-              </p>
-              <h3
-                className="text-3xl md:text-4xl lg:text-5xl font-heading font-black text-eagle-red uppercase mb-8 leading-tight tracking-tight"
-                dangerouslySetInnerHTML={{ __html: content.about.pillarsHeadline }}
+              <SiteText
+                as="p"
+                path="about.pillarsIntro"
+                className="text-xl md:text-2xl text-gray-600 mb-6 leading-relaxed font-light lowercase"
               />
-              <p
+              <SiteText
+                as="h3"
+                path="about.pillarsHeadline"
+                html
+                className="text-3xl md:text-4xl lg:text-5xl font-heading font-black text-eagle-red uppercase mb-8 leading-tight tracking-tight"
+              />
+              <SiteText
+                as="p"
+                path="about.pillarsOutro"
+                html
                 className="text-xl text-gray-600 leading-relaxed font-light lowercase"
-                dangerouslySetInnerHTML={{ __html: content.about.pillarsOutro }}
               />
             </div>
             <div className="order-1 lg:order-2 flex justify-center lg:justify-end">
@@ -219,7 +238,7 @@ export default function About() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
             {valueBlocks.map((value, idx) => (
               <motion.div
-                key={`${value.title}-${idx}`}
+                key={value.titlePath}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -233,12 +252,16 @@ export default function About() {
                     strokeWidth={1.5}
                   />
                 </div>
-                <h3 className="text-2xl font-heading font-bold mb-4 text-eagle-black uppercase">
-                  {value.title}
-                </h3>
-                <p
+                <SiteText
+                  as="h3"
+                  path={value.titlePath}
+                  className="text-2xl font-heading font-bold mb-4 text-eagle-black uppercase"
+                />
+                <SiteText
+                  as="p"
+                  path={value.descPath}
+                  html
                   className="text-gray-600 leading-relaxed text-lg"
-                  dangerouslySetInnerHTML={{ __html: value.desc }}
                 />
               </motion.div>
             ))}

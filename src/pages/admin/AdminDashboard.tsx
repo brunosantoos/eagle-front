@@ -28,6 +28,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmModal } from '../../components/admin/ConfirmModal';
 import { RichTextEditor } from '../../components/admin/RichTextEditor';
+import {
+  FieldHead,
+  TextStyleDraftProvider,
+} from '../../components/admin/FieldHead';
 import { useAdminAuth, type AdminRole } from '../../context/AdminAuthProvider';
 import { useSiteContent } from '../../context/SiteContentProvider';
 import { useToast } from '../../context/ToastProvider';
@@ -303,6 +307,10 @@ export default function AdminDashboard() {
     setContent(
       (prev) => ({
         ...prev,
+        // A formatação dos textos é editada campo a campo, espalhada por todas
+        // as seções — publicar o mapa inteiro em qualquer save é o que evita
+        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
+        textStyles: structuredClone(draft.textStyles),
         nav: structuredClone(draft.nav),
         footer: structuredClone(draft.footer),
         privacyPolicy: structuredClone(draft.privacyPolicy),
@@ -321,6 +329,10 @@ export default function AdminDashboard() {
     setContent(
       (prev) => ({
         ...prev,
+        // A formatação dos textos é editada campo a campo, espalhada por todas
+        // as seções — publicar o mapa inteiro em qualquer save é o que evita
+        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
+        textStyles: structuredClone(draft.textStyles),
         typography: { ...draft.typography },
       }),
       {
@@ -334,6 +346,10 @@ export default function AdminDashboard() {
     setContent(
       (prev) => ({
         ...prev,
+        // A formatação dos textos é editada campo a campo, espalhada por todas
+        // as seções — publicar o mapa inteiro em qualquer save é o que evita
+        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
+        textStyles: structuredClone(draft.textStyles),
         home: structuredClone(draft.home),
       }),
       {
@@ -347,6 +363,10 @@ export default function AdminDashboard() {
     setContent(
       (prev) => ({
         ...prev,
+        // A formatação dos textos é editada campo a campo, espalhada por todas
+        // as seções — publicar o mapa inteiro em qualquer save é o que evita
+        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
+        textStyles: structuredClone(draft.textStyles),
         about: structuredClone(draft.about),
       }),
       {
@@ -360,6 +380,10 @@ export default function AdminDashboard() {
     setContent(
       (prev) => ({
         ...prev,
+        // A formatação dos textos é editada campo a campo, espalhada por todas
+        // as seções — publicar o mapa inteiro em qualquer save é o que evita
+        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
+        textStyles: structuredClone(draft.textStyles),
         franchise: structuredClone(draft.franchise),
       }),
       {
@@ -375,6 +399,10 @@ export default function AdminDashboard() {
         ...prev,
         // Máscara/desfoque são editados dentro do modal "Editar imagem" da aba
         // Mídias, então precisam ser publicados junto com as imagens.
+        // A formatação dos textos é editada campo a campo, espalhada por todas
+        // as seções — publicar o mapa inteiro em qualquer save é o que evita
+        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
+        textStyles: structuredClone(draft.textStyles),
         mediaEffects: structuredClone(draft.mediaEffects),
         home: { ...prev.home, secondHero: structuredClone(draft.home.secondHero) },
         about: {
@@ -439,6 +467,10 @@ export default function AdminDashboard() {
   const roleLabel = role ? ROLE_LABEL[role] : '';
 
   return (
+    <TextStyleDraftProvider
+      styles={draft.textStyles}
+      onChange={(textStyles) => setDraft((d) => ({ ...d, textStyles }))}
+    >
     <div className="fixed inset-0 z-0 flex overflow-hidden bg-eagle-black text-eagle-light">
       <aside className="hidden md:flex w-72 shrink-0 min-h-0 flex-col border-r border-zinc-800/80 bg-gradient-to-b from-zinc-950 via-zinc-950/98 to-eagle-black">
         <div className="shrink-0 flex items-center gap-3 px-4 pt-5 pb-4 border-b border-zinc-800/80">
@@ -723,7 +755,7 @@ export default function AdminDashboard() {
                 {navTab === 'menu' && (<>
                 <div className="grid md:grid-cols-3 gap-4">
                   <div>
-                    <label className={lbCls}>Link — Home</label>
+                    <FieldHead label="Link — Home" path="nav.home" />
                     <input
                       className={inCls}
                       value={draft.nav.home}
@@ -736,7 +768,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Link — Sobre</label>
+                    <FieldHead label="Link — Sobre" path="nav.about" />
                     <input
                       className={inCls}
                       value={draft.nav.about}
@@ -749,7 +781,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Link — Franquia</label>
+                    <FieldHead label="Link — Franquia" path="nav.franchise" />
                     <input
                       className={inCls}
                       value={draft.nav.franchise}
@@ -766,7 +798,7 @@ export default function AdminDashboard() {
 
                 {navTab === 'footer' && (<>
                 <div>
-                  <label className={lbCls}>Rodapé — tagline</label>
+                  <FieldHead label="Rodapé — tagline" path="footer.tagline" />
                   <RichTextEditor
                     value={draft.footer.tagline}
                     onChange={(html) =>
@@ -779,7 +811,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className={lbCls}>Coluna — Navegação (título)</label>
+                    <FieldHead label="Coluna — Navegação (título)" path="footer.navTitle" />
                     <input
                       className={inCls}
                       value={draft.footer.navTitle}
@@ -792,7 +824,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Coluna — Franquia (título)</label>
+                    <FieldHead label="Coluna — Franquia (título)" path="footer.franchiseColumnTitle" />
                     <input
                       className={inCls}
                       value={draft.footer.franchiseColumnTitle}
@@ -808,7 +840,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Coluna — Contato (título)</label>
+                    <FieldHead label="Coluna — Contato (título)" path="footer.contactTitle" />
                     <input
                       className={inCls}
                       value={draft.footer.contactTitle}
@@ -821,7 +853,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Copyright — nome da marca</label>
+                    <FieldHead label="Copyright — nome da marca" path="footer.copyrightName" />
                     <input
                       className={inCls}
                       value={draft.footer.copyrightName}
@@ -836,7 +868,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className={lbCls}>Link rodapé — Home</label>
+                    <FieldHead label="Link rodapé — Home" path="footer.linkHome" />
                     <input
                       className={inCls}
                       value={draft.footer.linkHome}
@@ -849,7 +881,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Link rodapé — Sobre</label>
+                    <FieldHead label="Link rodapé — Sobre" path="footer.linkAbout" />
                     <input
                       className={inCls}
                       value={draft.footer.linkAbout}
@@ -862,7 +894,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Link rodapé — Franquia</label>
+                    <FieldHead label="Link rodapé — Franquia" path="footer.linkFranchise" />
                     <input
                       className={inCls}
                       value={draft.footer.linkFranchise}
@@ -877,7 +909,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="grid md:grid-cols-3 gap-4">
                   <div>
-                    <label className={lbCls}>Franquia — link 1</label>
+                    <FieldHead label="Franquia — link 1" path="footer.franchiseLink1" />
                     <input
                       className={inCls}
                       value={draft.footer.franchiseLink1}
@@ -890,7 +922,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Franquia — link 2</label>
+                    <FieldHead label="Franquia — link 2" path="footer.franchiseLink2" />
                     <input
                       className={inCls}
                       value={draft.footer.franchiseLink2}
@@ -903,7 +935,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Franquia — link 3</label>
+                    <FieldHead label="Franquia — link 3" path="footer.franchiseLink3" />
                     <input
                       className={inCls}
                       value={draft.footer.franchiseLink3}
@@ -918,7 +950,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className={lbCls}>Endereço — linha 1</label>
+                    <FieldHead label="Endereço — linha 1" path="footer.addressLine1" />
                     <input
                       className={inCls}
                       value={draft.footer.addressLine1}
@@ -931,7 +963,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Endereço — linha 2</label>
+                    <FieldHead label="Endereço — linha 2" path="footer.addressLine2" />
                     <input
                       className={inCls}
                       value={draft.footer.addressLine2}
@@ -962,7 +994,7 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                   <div>
-                    <label className={lbCls}>Telefone</label>
+                    <FieldHead label="Telefone" path="footer.phone" />
                     <input
                       className={inCls}
                       value={draft.footer.phone}
@@ -975,7 +1007,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>E-mail</label>
+                    <FieldHead label="E-mail" path="footer.email" />
                     <input
                       className={inCls}
                       value={draft.footer.email}
@@ -988,7 +1020,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Termos de uso (texto)</label>
+                    <FieldHead label="Termos de uso (texto)" path="footer.terms" />
                     <input
                       className={inCls}
                       value={draft.footer.terms}
@@ -1001,7 +1033,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Política de privacidade (texto)</label>
+                    <FieldHead label="Política de privacidade (texto)" path="footer.privacy" />
                     <input
                       className={inCls}
                       value={draft.footer.privacy}
@@ -1018,7 +1050,7 @@ export default function AdminDashboard() {
                 <div className="pt-4 border-t border-zinc-800">
                   <div className="grid md:grid-cols-2 gap-4 mb-5">
                     <div>
-                      <label className={lbCls}>Redes sociais — título do bloco</label>
+                      <FieldHead label="Redes sociais — título do bloco" path="footer.socialTitle" />
                       <input
                         className={inCls}
                         value={draft.footer.socialTitle}
@@ -1031,7 +1063,7 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className={lbCls}>Redes sociais — chamada</label>
+                      <FieldHead label="Redes sociais — chamada" path="footer.socialDescription" />
                       <input
                         className={inCls}
                         placeholder="Acesse nossa rede social e acompanhe nossas atualizações."
@@ -1149,7 +1181,7 @@ export default function AdminDashboard() {
                   Conteúdo exibido na página <span className="text-zinc-300">/privacidade</span>, acessível pelo link &quot;{draft.footer.privacy}&quot; no rodapé do site.
                 </p>
                 <div>
-                  <label className={lbCls}>Título da página</label>
+                  <FieldHead label="Título da página" path="privacyPolicy.title" />
                   <input
                     className={inCls}
                     value={draft.privacyPolicy.title}
@@ -1162,7 +1194,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Texto da política</label>
+                  <FieldHead label="Texto da política" path="privacyPolicy.content" />
                   <RichTextEditor
                     value={draft.privacyPolicy.content}
                     onChange={(html) =>
@@ -1180,7 +1212,7 @@ export default function AdminDashboard() {
                   Conteúdo exibido na página <span className="text-zinc-300">/termos</span>, acessível pelo link &quot;{draft.footer.terms}&quot; no rodapé do site.
                 </p>
                 <div>
-                  <label className={lbCls}>Título da página</label>
+                  <FieldHead label="Título da página" path="termsOfUse.title" />
                   <input
                     className={inCls}
                     value={draft.termsOfUse.title}
@@ -1193,7 +1225,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Texto dos termos</label>
+                  <FieldHead label="Texto dos termos" path="termsOfUse.content" />
                   <RichTextEditor
                     value={draft.termsOfUse.content}
                     onChange={(html) =>
@@ -1442,7 +1474,7 @@ export default function AdminDashboard() {
                   </p>
                 </div>
                 <div>
-                  <label className={lbCls}>Eyebrow</label>
+                  <FieldHead label="Eyebrow" path="home.hero.eyebrow" />
                   <input
                     className={inCls}
                     value={draft.home.hero.eyebrow}
@@ -1458,7 +1490,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Título (parte antes do destaque)</label>
+                  <FieldHead label="Título (parte antes do destaque)" path="home.hero.titleLine1" />
                   <input
                     className={inCls}
                     value={draft.home.hero.titleLine1}
@@ -1474,7 +1506,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Título (destaque em gradiente)</label>
+                  <FieldHead label="Título (destaque em gradiente)" path="home.hero.titleHighlight" />
                   <input
                     className={inCls}
                     value={draft.home.hero.titleHighlight}
@@ -1493,7 +1525,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Subtítulo</label>
+                  <FieldHead label="Subtítulo" path="home.hero.subtitle" />
                   <RichTextEditor
                     value={draft.home.hero.subtitle}
                     onChange={(html) =>
@@ -1724,7 +1756,7 @@ export default function AdminDashboard() {
 
                 {homeTab === 'experience' && (<>
                 <div>
-                  <label className={lbCls}>Título linha 1</label>
+                  <FieldHead label="Título linha 1" path="home.experience.titleLine1" />
                   <input
                     className={inCls}
                     value={draft.home.experience.titleLine1}
@@ -1743,7 +1775,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Título linha 2 (dourado)</label>
+                  <FieldHead label="Título linha 2 (dourado)" path="home.experience.titleLine2" />
                   <input
                     className={inCls}
                     value={draft.home.experience.titleLine2}
@@ -1762,7 +1794,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Parágrafo</label>
+                  <FieldHead label="Parágrafo" path="home.experience.body" />
                   <RichTextEditor
                     value={draft.home.experience.body}
                     onChange={(html) =>
@@ -1807,7 +1839,10 @@ export default function AdminDashboard() {
                 {draft.home.experience.bullets.map((b, i) => (
                   <div key={i} className="flex items-end gap-2">
                     <div className="flex-1 min-w-0">
-                      <label className={lbCls}>Item {i + 1}</label>
+                      <FieldHead
+                        label={`Item ${i + 1}`}
+                        path={`home.experience.bullets.${i}`}
+                      />
                       <input
                         className={inCls}
                         value={b}
@@ -1854,7 +1889,7 @@ export default function AdminDashboard() {
 
                 {homeTab === 'carousel' && (<>
                 <div>
-                  <label className={lbCls}>Título da seção</label>
+                  <FieldHead label="Título da seção" path="home.carousel.title" />
                   <input
                     className={inCls}
                     value={draft.home.carousel.title}
@@ -1870,7 +1905,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Nota de rodapé</label>
+                  <FieldHead label="Nota de rodapé" path="home.carousel.footnote" />
                   <input
                     className={inCls}
                     value={draft.home.carousel.footnote}
@@ -2042,7 +2077,7 @@ export default function AdminDashboard() {
                       </button>
                     </div>
                     <div>
-                      <label className={lbCls}>Label lateral</label>
+                      <FieldHead label="Label lateral" path={`home.workouts.${i}.label`} />
                       <input
                         className={inCls}
                         value={w.label}
@@ -2056,7 +2091,7 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className={lbCls}>Título</label>
+                      <FieldHead label="Título" path={`home.workouts.${i}.title`} />
                       <input
                         className={inCls}
                         value={w.title}
@@ -2091,7 +2126,7 @@ export default function AdminDashboard() {
 
                 {homeTab === 'teaser' && (<>
                 <div>
-                  <label className={lbCls}>Eyebrow</label>
+                  <FieldHead label="Eyebrow" path="home.franchiseTeaser.eyebrow" />
                   <input
                     className={inCls}
                     value={draft.home.franchiseTeaser.eyebrow}
@@ -2110,7 +2145,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Título (parte fixa)</label>
+                  <FieldHead label="Título (parte fixa)" path="home.franchiseTeaser.titlePart1" />
                   <input
                     className={inCls}
                     value={draft.home.franchiseTeaser.titlePart1}
@@ -2129,7 +2164,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Título (parte em gradiente)</label>
+                  <FieldHead label="Título (parte em gradiente)" path="home.franchiseTeaser.titleGradient" />
                   <input
                     className={inCls}
                     value={draft.home.franchiseTeaser.titleGradient}
@@ -2148,7 +2183,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Parágrafo</label>
+                  <FieldHead label="Parágrafo" path="home.franchiseTeaser.body" />
                   <RichTextEditor
                     value={draft.home.franchiseTeaser.body}
                     onChange={(html) =>
@@ -2166,7 +2201,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Texto do botão</label>
+                  <FieldHead label="Texto do botão" path="home.franchiseTeaser.cta" />
                   <input
                     className={inCls}
                     value={draft.home.franchiseTeaser.cta}
@@ -2219,7 +2254,7 @@ export default function AdminDashboard() {
 
                 {aboutTab === 'hero' && (<>
                 <div>
-                  <label className={lbCls}>Hero — título</label>
+                  <FieldHead label="Hero — título" path="about.heroTitle" />
                   <RichTextEditor
                     value={draft.about.heroTitle}
                     onChange={(html) =>
@@ -2285,7 +2320,7 @@ export default function AdminDashboard() {
 
                 {aboutTab === 'story' && (<>
                 <div>
-                  <label className={lbCls}>Nossa história — título</label>
+                  <FieldHead label="Nossa história — título" path="about.storyTitle" />
                   <input
                     className={inCls}
                     value={draft.about.storyTitle}
@@ -2299,7 +2334,10 @@ export default function AdminDashboard() {
                 </div>
                 {draft.about.storyParagraphs.map((p, i) => (
                   <div key={i}>
-                    <label className={lbCls}>História — parágrafo {i + 1}</label>
+                    <FieldHead
+                      label={`História — parágrafo ${i + 1}`}
+                      path={`about.storyParagraphs.${i}`}
+                    />
                     <RichTextEditor
                       value={p}
                       onChange={(html) =>
@@ -2335,7 +2373,7 @@ export default function AdminDashboard() {
                   </span>
                 </label>
                 <div>
-                  <label className={lbCls}>Pilares — título da seção</label>
+                  <FieldHead label="Pilares — título da seção" path="about.pillarsTitle" />
                   <input
                     className={inCls}
                     value={draft.about.pillarsTitle}
@@ -2348,7 +2386,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Pilares — texto intro (minúsculas no site)</label>
+                  <FieldHead label="Pilares — texto intro (minúsculas no site)" path="about.pillarsIntro" />
                   <input
                     className={inCls}
                     value={draft.about.pillarsIntro}
@@ -2361,7 +2399,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Pilares — headline</label>
+                  <FieldHead label="Pilares — headline" path="about.pillarsHeadline" />
                   <RichTextEditor
                     value={draft.about.pillarsHeadline}
                     onChange={(html) =>
@@ -2373,7 +2411,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Pilares — texto final</label>
+                  <FieldHead label="Pilares — texto final" path="about.pillarsOutro" />
                   <RichTextEditor
                     value={draft.about.pillarsOutro}
                     onChange={(html) =>
@@ -2389,7 +2427,7 @@ export default function AdminDashboard() {
                 {aboutTab === 'values' && (<>
                 <div className="grid md:grid-cols-3 gap-4">
                   <div>
-                    <label className={lbCls}>Missão — título</label>
+                    <FieldHead label="Missão — título" path="about.missionTitle" />
                     <input
                       className={inCls}
                       value={draft.about.missionTitle}
@@ -2402,7 +2440,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Visão — título</label>
+                    <FieldHead label="Visão — título" path="about.visionTitle" />
                     <input
                       className={inCls}
                       value={draft.about.visionTitle}
@@ -2415,7 +2453,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className={lbCls}>Valores — título</label>
+                    <FieldHead label="Valores — título" path="about.valuesTitle" />
                     <input
                       className={inCls}
                       value={draft.about.valuesTitle}
@@ -2429,7 +2467,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div>
-                  <label className={lbCls}>Missão — descrição</label>
+                  <FieldHead label="Missão — descrição" path="about.missionDesc" />
                   <RichTextEditor
                     value={draft.about.missionDesc}
                     onChange={(html) =>
@@ -2441,7 +2479,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Visão — descrição</label>
+                  <FieldHead label="Visão — descrição" path="about.visionDesc" />
                   <RichTextEditor
                     value={draft.about.visionDesc}
                     onChange={(html) =>
@@ -2453,7 +2491,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Valores — descrição</label>
+                  <FieldHead label="Valores — descrição" path="about.valuesDesc" />
                   <RichTextEditor
                     value={draft.about.valuesDesc}
                     onChange={(html) =>
@@ -2500,7 +2538,7 @@ export default function AdminDashboard() {
 
                 {franchiseTab === 'hero' && (<>
                 <div>
-                  <label className={lbCls}>Eyebrow</label>
+                  <FieldHead label="Eyebrow" path="franchise.heroEyebrow" />
                   <input
                     className={inCls}
                     value={draft.franchise.heroEyebrow}
@@ -2516,7 +2554,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Título (antes do destaque)</label>
+                  <FieldHead label="Título (antes do destaque)" path="franchise.heroTitleBefore" />
                   <input
                     className={inCls}
                     value={draft.franchise.heroTitleBefore}
@@ -2532,7 +2570,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Título (destaque)</label>
+                  <FieldHead label="Título (destaque)" path="franchise.heroTitleHighlight" />
                   <input
                     className={inCls}
                     value={draft.franchise.heroTitleHighlight}
@@ -2548,7 +2586,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Parágrafo</label>
+                  <FieldHead label="Parágrafo" path="franchise.heroBody" />
                   <RichTextEditor
                     value={draft.franchise.heroBody}
                     onChange={(html) =>
@@ -2560,7 +2598,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Botão (âncora formulário)</label>
+                  <FieldHead label="Botão (âncora formulário)" path="franchise.heroCta" />
                   <input
                     className={inCls}
                     value={draft.franchise.heroCta}
@@ -2577,7 +2615,7 @@ export default function AdminDashboard() {
 
                 {franchiseTab === 'why' && (<>
                 <div>
-                  <label className={lbCls}>Título</label>
+                  <FieldHead label="Título" path="franchise.whyTitle" />
                   <input
                     className={inCls}
                     value={draft.franchise.whyTitle}
@@ -2590,7 +2628,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Texto</label>
+                  <FieldHead label="Texto" path="franchise.whyBody" />
                   <RichTextEditor
                     value={draft.franchise.whyBody}
                     onChange={(html) =>
@@ -2665,7 +2703,7 @@ export default function AdminDashboard() {
                       }
                     />
                     <div>
-                      <label className={lbCls}>Título</label>
+                      <FieldHead label="Título" path={`franchise.whyCards.${i}.title`} />
                       <input
                         className={inCls}
                         value={card.title}
@@ -2682,7 +2720,7 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className={lbCls}>Descrição</label>
+                      <FieldHead label="Descrição" path={`franchise.whyCards.${i}.desc`} />
                       <RichTextEditor
                         value={card.desc}
                         onChange={(html) =>
@@ -2704,7 +2742,7 @@ export default function AdminDashboard() {
 
                 {franchiseTab === 'support' && (<>
                 <div>
-                  <label className={lbCls}>Título</label>
+                  <FieldHead label="Título" path="franchise.supportTitle" />
                   <input
                     className={inCls}
                     value={draft.franchise.supportTitle}
@@ -2720,7 +2758,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Parágrafo</label>
+                  <FieldHead label="Parágrafo" path="franchise.supportBody" />
                   <RichTextEditor
                     value={draft.franchise.supportBody}
                     onChange={(html) =>
@@ -2800,7 +2838,7 @@ export default function AdminDashboard() {
                       }
                     />
                     <div>
-                      <label className={lbCls}>Título</label>
+                      <FieldHead label="Título" path={`franchise.supportItems.${i}.title`} />
                       <input
                         className={inCls}
                         value={item.title}
@@ -2820,7 +2858,7 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className={lbCls}>Descrição</label>
+                      <FieldHead label="Descrição" path={`franchise.supportItems.${i}.desc`} />
                       <RichTextEditor
                         value={item.desc}
                         onChange={(html) =>
@@ -2845,7 +2883,7 @@ export default function AdminDashboard() {
 
                 {franchiseTab === 'numbers' && (<>
                 <div>
-                  <label className={lbCls}>Título da caixa</label>
+                  <FieldHead label="Título da caixa" path="franchise.numbersTitle" />
                   <input
                     className={inCls}
                     value={draft.franchise.numbersTitle}
@@ -2905,7 +2943,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <label className={lbCls}>Rótulo</label>
+                        <FieldHead label="Rótulo" path={`franchise.numbers.${i}.label`} />
                         <input
                           className={inCls}
                           value={n.label}
@@ -2919,7 +2957,7 @@ export default function AdminDashboard() {
                         />
                       </div>
                       <div>
-                        <label className={lbCls}>Valor</label>
+                        <FieldHead label="Valor" path={`franchise.numbers.${i}.value`} />
                         <input
                           className={inCls}
                           value={n.value}
@@ -2936,7 +2974,7 @@ export default function AdminDashboard() {
                   </div>
                 ))}
                 <div>
-                  <label className={lbCls}>Disclaimer</label>
+                  <FieldHead label="Disclaimer" path="franchise.numbersDisclaimer" />
                   <RichTextEditor
                     value={draft.franchise.numbersDisclaimer}
                     onChange={(html) =>
@@ -2955,7 +2993,7 @@ export default function AdminDashboard() {
 
                 {franchiseTab === 'form' && (<>
                 <div>
-                  <label className={lbCls}>Título</label>
+                  <FieldHead label="Título" path="franchise.formTitle" />
                   <input
                     className={inCls}
                     value={draft.franchise.formTitle}
@@ -2968,7 +3006,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Subtítulo</label>
+                  <FieldHead label="Subtítulo" path="franchise.formSubtitle" />
                   <RichTextEditor
                     value={draft.franchise.formSubtitle}
                     onChange={(html) =>
@@ -2993,9 +3031,10 @@ export default function AdminDashboard() {
                     ] as const
                   ).map((key) => (
                     <div key={key}>
-                      <label className={lbCls}>
-                        Rótulo — {key.replace('label', '')}
-                      </label>
+                      <FieldHead
+                        label={`Rótulo — ${key.replace('label', '')}`}
+                        path={`franchise.${key}`}
+                      />
                       <input
                         className={inCls}
                         value={draft.franchise[key]}
@@ -3022,7 +3061,7 @@ export default function AdminDashboard() {
                     ] as const
                   ).map(([key]) => (
                     <div key={key}>
-                      <label className={lbCls}>Placeholder — {key}</label>
+                      <FieldHead label={`Placeholder — ${key}`} />
                       <input
                         className={inCls}
                         value={draft.franchise[key]}
@@ -3040,7 +3079,7 @@ export default function AdminDashboard() {
                   ))}
                 </div>
                 <div>
-                  <label className={lbCls}>Select capital — placeholder</label>
+                  <FieldHead label="Select capital — placeholder" />
                   <input
                     className={inCls}
                     value={draft.franchise.selectCapitalPlaceholder}
@@ -3117,7 +3156,7 @@ export default function AdminDashboard() {
                         />
                       </div>
                       <div>
-                        <label className={lbCls}>Texto exibido</label>
+                        <FieldHead label="Texto exibido" />
                         <input
                           className={inCls}
                           value={opt.label}
@@ -3134,7 +3173,7 @@ export default function AdminDashboard() {
                   </div>
                 ))}
                 <div>
-                  <label className={lbCls}>Botão enviar</label>
+                  <FieldHead label="Botão enviar" path="franchise.submitButton" />
                   <input
                     className={inCls}
                     value={draft.franchise.submitButton}
@@ -3150,7 +3189,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className={lbCls}>Mensagem após envio (toast no site)</label>
+                  <FieldHead label="Mensagem após envio (toast no site)" />
                   <RichTextEditor
                     value={draft.franchise.formSuccessMessage}
                     onChange={(html) =>
@@ -3184,5 +3223,6 @@ export default function AdminDashboard() {
         variant="danger"
       />
     </div>
+    </TextStyleDraftProvider>
   );
 }

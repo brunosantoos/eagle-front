@@ -59,6 +59,7 @@ Build precisa do submodule presente — sem ele `src/lib/trpc.ts` quebra na reso
 - Section card: componente `<Section title subtitle>` com linha gradient red no topo.
 - Save bar: `<SectionSaveBar onSave label>` — botão vermelho com ring + dot amber pulsante.
 - Role badges: admin `bg-eagle-red/15 text-eagle-gold`, editor `bg-blue-500/15 text-blue-200`, user `bg-emerald-500/15 text-emerald-200`.
+- Rótulo de campo no admin: `<FieldHead label path />` (não `<label className={lbCls}>`) — traz junto o botão de formatação do campo.
 - Sliders de config: componente `SliderField` (topo de `AdminDashboard.tsx`); cores: `ColorField` (valor `''` = padrão do site).
 - Rodapé: contato com campo vazio simplesmente não aparece — é assim que se oculta telefone/e-mail/endereço/rede social.
 - Carrossel da Home é configurável em `content.home.carousel` (cores, tamanho de fonte dos cards, véu branco e degradê lateral).
@@ -163,6 +164,39 @@ originou o catálogo.
   página) e já entram marcadas como carregadas.
 - No backend o campo é **opcional** no zod — conteúdo salvo antes desta versão continua válido e o
   `mergeSiteContent` completa com o padrão.
+
+## Formatação por campo de texto
+
+Todo campo de texto do site tem fonte, tamanho, espessura, **caixa**, alinhamento, cor, espaçamento
+entre letras e altura da linha — editáveis campo a campo no painel.
+
+- **Onde fica:** `content.textStyles`, um mapa `caminho do campo -> TextStyle`
+  (`about.pillarsIntro`, `home.workouts.0.title`). Mesmo desenho do `mediaEffects`: mapa livre, e por
+  isso precisa de normalização própria no `mergeSiteContent` — o deepMerge só copia chave que já
+  existe no default (`{}`).
+- **No site:** `<SiteText path="about.pillarsIntro" as="p" className="..." />`
+  (`components/site/SiteText.tsx`). O `path` busca o texto **e** a formatação, então não há como os
+  dois apontarem para campos diferentes. Use `html` para campo de rich text e `value` quando o texto
+  vem de um valor derivado (item de lista, `useMemo`).
+- **No painel:** `<FieldHead label="..." path="..." />` (`components/admin/FieldHead.tsx`) troca o
+  antigo `<label className={lbCls}>` e desenha o botão "Formatar" ao lado do rótulo. A leitura e a
+  escrita do mapa vêm do `TextStyleDraftProvider`, que envolve o `AdminDashboard` inteiro —
+  o formulário continua escrevendo só o texto.
+- **Campo sem `path` não ganha botão.** Placeholder de input, `<option>` de select e texto de toast
+  não são elementos na página: não há onde aplicar `style`.
+- **Regra de precedência:** classe do Tailwind é a aparência padrão, `style` inline do campo ganha
+  dela. É assim que a caixa "Como escrito" vence um `uppercase` chumbado no código — era o bug do
+  "edito o O maiúsculo e o site mostra minúsculo" (`About.tsx`, `pillarsIntro`).
+  Em `SiteText` o `style` recebido por prop é **base**: a formatação do campo vem depois e ganha,
+  porque é a configuração mais específica (cores de seção do segundo hero e do carrossel entram
+  por ali).
+- **Tamanho é um número só.** O valor vale no desktop e vira `clamp()` em `lib/textStyle.ts`,
+  encolhendo até 65% (piso de 12px) entre 1280px e 360px de viewport. Pedir dois tamanhos por campo
+  seria pedir para o cliente errar o mobile.
+- **Publicação:** `textStyles` entra em **todos** os saves de conteúdo do `AdminDashboard`. A
+  formatação é editada espalhada pelas seções; publicar só a seção ativa deixaria alteração para trás.
+- **Fontes:** nada a fazer. `collectUsedFontIds()` varre o JSON procurando `"<id>"`, e o id salvo em
+  `textStyles[].font` já cai nessa varredura.
 
 ## RichTextEditor
 

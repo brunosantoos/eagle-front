@@ -93,6 +93,94 @@ export const DEFAULT_MEDIA_EFFECT: MediaEffect = {
   blur: 0,
 };
 
+/** Caixa das letras. '' = mantém o que o site já usa naquele lugar. */
+export type TextCase = '' | 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+
+/** Alinhamento. '' = mantém o do site. */
+export type TextAlign = '' | 'left' | 'center' | 'right' | 'justify';
+
+/**
+ * Formatação de um campo de texto do site, editável no painel.
+ *
+ * Todo campo tem a mesma ficha: fonte, tamanho, peso, caixa, alinhamento, cor,
+ * espaçamento e altura da linha. Valor vazio (`''` ou `null`) significa
+ * "mantém o padrão do site" — por isso um site sem nada configurado continua
+ * exatamente como está hoje.
+ *
+ * Só o que o admin realmente mexeu vira `style` inline no render, e `style`
+ * inline ganha de qualquer classe do Tailwind. É assim que "Normal" na caixa
+ * consegue vencer um `uppercase` escrito no código.
+ */
+export type TextStyle = {
+  /** Id do catálogo em `lib/fonts.ts`. '' = herda a fonte do bloco. */
+  font: string;
+  /** Tamanho em px no desktop. No celular encolhe sozinho. null = padrão. */
+  fontSize: number | null;
+  /** 100–900. null = padrão. */
+  weight: number | null;
+  caseTransform: TextCase;
+  align: TextAlign;
+  /** Cor em hex. '' = cor padrão do site. */
+  color: string;
+  /** Espaçamento entre letras em px. null = padrão. */
+  letterSpacing: number | null;
+  /** Altura da linha (multiplicador, ex.: 1.4). null = padrão. */
+  lineHeight: number | null;
+};
+
+export const DEFAULT_TEXT_STYLE: TextStyle = {
+  font: '',
+  fontSize: null,
+  weight: null,
+  caseTransform: '',
+  align: '',
+  color: '',
+  letterSpacing: null,
+  lineHeight: null,
+};
+
+const TEXT_CASES: TextCase[] = ['', 'none', 'uppercase', 'lowercase', 'capitalize'];
+const TEXT_ALIGNS: TextAlign[] = ['', 'left', 'center', 'right', 'justify'];
+
+/** true quando nada foi configurado — usado para não gravar entrada vazia. */
+export function isDefaultTextStyle(style: TextStyle): boolean {
+  return (
+    style.font === '' &&
+    style.fontSize === null &&
+    style.weight === null &&
+    style.caseTransform === '' &&
+    style.align === '' &&
+    style.color === '' &&
+    style.letterSpacing === null &&
+    style.lineHeight === null
+  );
+}
+
+/** Aceita qualquer coisa vinda do banco e devolve um TextStyle válido. */
+export function normalizeTextStyle(value: unknown): TextStyle {
+  if (!isPlainObject(value)) return { ...DEFAULT_TEXT_STYLE };
+  const num = (key: keyof TextStyle) =>
+    typeof value[key] === 'number' && Number.isFinite(value[key] as number)
+      ? (value[key] as number)
+      : null;
+  const str = (key: keyof TextStyle) =>
+    typeof value[key] === 'string' ? (value[key] as string) : '';
+
+  const caseTransform = str('caseTransform') as TextCase;
+  const align = str('align') as TextAlign;
+
+  return {
+    font: str('font'),
+    fontSize: num('fontSize'),
+    weight: num('weight'),
+    caseTransform: TEXT_CASES.includes(caseTransform) ? caseTransform : '',
+    align: TEXT_ALIGNS.includes(align) ? align : '',
+    color: str('color'),
+    letterSpacing: num('letterSpacing'),
+    lineHeight: num('lineHeight'),
+  };
+}
+
 export type SiteMedia = {
   /** Menu superior — logo principal */
   navLogo: string;
@@ -127,6 +215,12 @@ export type SiteContent = {
    * Chave ausente = sem efeito (ver DEFAULT_MEDIA_EFFECT).
    */
   mediaEffects: Record<string, MediaEffect>;
+  /**
+   * Formatação por campo de texto, com a chave sendo o caminho do campo no
+   * próprio conteúdo (ex.: `about.pillarsIntro`, `home.workouts.0.title`).
+   * Chave ausente = campo sem formatação própria (ver DEFAULT_TEXT_STYLE).
+   */
+  textStyles: Record<string, TextStyle>;
   nav: {
     home: string;
     about: string;
@@ -288,6 +382,7 @@ export const defaultSiteContent: SiteContent = {
     franchiseHeroVideo: '/franquia.mp4',
   },
   mediaEffects: {},
+  textStyles: {},
   nav: {
     home: 'Home',
     about: 'Sobre Nós',
@@ -591,6 +686,20 @@ export function mergeSiteContent(
       };
     }
     out.mediaEffects = effects;
+  }
+
+  // `textStyles` é mapa livre, mesmo caso do `mediaEffects` acima: o deepMerge
+  // só copia chave que já existe no default (`{}`), então sem este passo a
+  // formatação salva sumiria no reload.
+  const storedTextStyles = (stored as { textStyles?: unknown }).textStyles;
+  if (isPlainObject(storedTextStyles)) {
+    const styles: Record<string, TextStyle> = {};
+    for (const [key, value] of Object.entries(storedTextStyles)) {
+      const normalized = normalizeTextStyle(value);
+      // Entrada zerada não precisa ocupar espaço no JSON do site.
+      if (!isDefaultTextStyle(normalized)) styles[key] = normalized;
+    }
+    out.textStyles = styles;
   }
 
   // Migrate legacy flat franchise.number* fields → numbers[] (only if stored had legacy and no numbers).
