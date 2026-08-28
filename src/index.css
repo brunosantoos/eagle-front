@@ -30,6 +30,21 @@
   h6 {
     @apply font-heading tracking-tight;
   }
+
+  /*
+    Navegador não põe mãozinha em <button> — só em link. O site inteiro é
+    botão (setas do carrossel, envio de formulário, painel), e sem isso nada
+    parece clicável. Botão desabilitado volta ao cursor normal, senão ele
+    promete um clique que não acontece.
+  */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
 }
 
 @layer utilities {

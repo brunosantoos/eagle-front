@@ -216,8 +216,8 @@ function UploadField({
         <p className="text-[11px] text-emerald-400/90">{compressionNote}</p>
       )}
       <p className="text-[11px] text-zinc-500 leading-relaxed">
-        Imagens são comprimidas automaticamente (WebP, no máximo 2560px) — envie
-        o arquivo original sem se preocupar com o tamanho.
+        A imagem vai para o site na qualidade original. Só arquivo fora de escala
+        (acima de 4500px ou 15 MB) é reduzido, para o site não travar.
       </p>
     </div>
   );
@@ -225,11 +225,13 @@ function UploadField({
 
 
 /**
- * Compressão do acervo já enviado.
+ * Compressão do acervo já enviado — o **único** lugar onde a imagem do site é
+ * recomprimida de propósito.
  *
- * O upload novo já entra comprimido, mas as imagens enviadas antes disso
- * continuam do tamanho original — este botão reprocessa o que está no servidor.
- * Nome e extensão são preservados, então nenhuma referência do site quebra.
+ * O upload não mexe mais na qualidade (ver `eagle-back/src/lib/imageOptimize.ts`),
+ * então comprimir passou a ser uma decisão de quem está no painel. A rotina só
+ * lista o que realmente pesa: acima de 1,5 MB ou fora de escala. Nome e extensão
+ * são preservados, então nenhuma referência do site quebra.
  *
  * Fluxo em dois passos de propósito: a análise mostra o que vai acontecer antes
  * de reescrever arquivo, porque a operação não tem desfazer.
@@ -279,10 +281,10 @@ function UploadsOptimizer() {
             Comprimir imagens já enviadas
           </h3>
           <p className="text-xs text-zinc-500 mt-1 max-w-xl leading-relaxed">
-            O que você enviar de agora em diante já é comprimido automaticamente.
-            Este botão trata as imagens enviadas antes disso: reduz para no
-            máximo 2560px e recomprime, mantendo o mesmo nome de arquivo — as
-            imagens do site continuam no lugar.
+            O upload não mexe na qualidade da sua imagem. Use este botão quando
+            o site estiver pesado: ele lista só as imagens acima de 1,5 MB ou
+            fora de escala e recomprime em qualidade alta, mantendo o mesmo nome
+            de arquivo. Analise antes — a compressão não tem desfazer.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

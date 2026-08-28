@@ -1,22 +1,35 @@
 /**
- * Compressão da imagem no navegador, antes de subir.
+ * Rede de segurança para arquivo absurdo, antes de subir.
  *
- * O backend também comprime (ver `eagle-back/src/lib/imageOptimize.ts`), mas
- * comprimir aqui é o que salva o tempo do usuário: sem isso, um PNG de 9 MB
- * ainda precisa atravessar o upload inteiro antes de virar 180 KB no servidor.
+ * **A imagem do cliente não é mais reprocessada por padrão.** Antes toda foto
+ * acima de 60 KB era reduzida para 2560px e reencodada em WebP q82 aqui, e
+ * depois o servidor fazia a mesma coisa de novo — duas perdas de qualidade
+ * empilhadas em cima de um arquivo que já vinha comprimido da câmera. O
+ * resultado era visível: uma foto de 832 KB chegava ao site com 285 KB.
+ *
+ * Compressão passou a ser um ato explícito, no botão "Comprimir imagens já
+ * enviadas" (Admin > Mídias). Aqui só sobra o caso extremo: arquivo tão grande
+ * que o upload travaria ou estouraria o limite de 100 MB da API.
  *
  * Falha de qualquer etapa devolve o arquivo original — o upload nunca depende
  * desta função ter dado certo.
  */
 
-/** Maior lado permitido; acima disso a imagem é reduzida proporcionalmente. */
-const MAX_DIMENSION = 2560;
+/**
+ * Teto de tamanho no maior lado, aplicado só quando a rede de segurança entra.
+ * Alto de propósito: é o dobro do maior hero do site, então mesmo o arquivo
+ * reduzido continua com folga de detalhe.
+ */
+const SAFETY_DIMENSION = 4500;
 
-/** Qualidade do WebP (0-1). Igual à do backend. */
-const QUALITY = 0.82;
+/** Qualidade do WebP (0-1) quando a rede de segurança precisa reencodar. */
+const QUALITY = 0.95;
 
-/** Abaixo disso não vale reprocessar. */
-const MIN_BYTES = 60 * 1024;
+/**
+ * A partir deste tamanho o arquivo é reduzido antes de subir. Abaixo disso a
+ * imagem sobe **exatamente como o cliente escolheu**, sem reencode.
+ */
+const SAFETY_BYTES = 15 * 1024 * 1024;
 
 /** Formatos que o canvas reprocessa com segurança (SVG e GIF ficam de fora). */
 const COMPRESSIBLE = new Set([
@@ -76,8 +89,8 @@ function toBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
 }
 
 /**
- * Reduz e converte para WebP. Devolve o original quando não compensa
- * (arquivo pequeno, formato não suportado, resultado maior que a entrada).
+ * Devolve o arquivo do jeito que veio, salvo quando ele é grande demais para
+ * subir — aí sim reduz e converte para WebP em qualidade alta.
  */
 export async function compressImageForUpload(
   file: File | Blob,
@@ -91,7 +104,8 @@ export async function compressImageForUpload(
   };
 
   if (!COMPRESSIBLE.has(file.type.toLowerCase())) return keep;
-  if (file.size < MIN_BYTES) return keep;
+  // O caminho normal para de mexer no arquivo aqui.
+  if (file.size < SAFETY_BYTES) return keep;
 
   try {
     const source = await decode(file);
@@ -99,7 +113,7 @@ export async function compressImageForUpload(
     const height = 'height' in source ? source.height : 0;
     if (!width || !height) return keep;
 
-    const scale = Math.min(1, MAX_DIMENSION / Math.max(width, height));
+    const scale = Math.min(1, SAFETY_DIMENSION / Math.max(width, height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(width * scale);
     canvas.height = Math.round(height * scale);

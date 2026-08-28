@@ -44,7 +44,10 @@ const ASPECT_PRESETS: AspectPreset[] = [
 const FIELD_PRESET_ID = 'field';
 
 /** Largura máxima do arquivo gerado — evita salvar 6000px de largura no servidor. */
-const MAX_OUTPUT_WIDTH = 1920;
+// Recorte é reencode inevitável (o canvas redesenha a imagem), então o teto é
+// alto e a qualidade também — 1920px cortava detalhe de foto que o site usa em
+// tela cheia.
+const MAX_OUTPUT_WIDTH = 3200;
 
 function parseAspect(aspect?: string): number | null {
   if (!aspect) return null;
@@ -326,12 +329,12 @@ export function ImageCropModal({
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
 
       const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((b) => resolve(b), 'image/webp', 0.92);
+        canvas.toBlob((b) => resolve(b), 'image/webp', 0.95);
       });
       const finalBlob =
         blob ??
         (await new Promise<Blob | null>((resolve) => {
-          canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92);
+          canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.95);
         }));
       if (!finalBlob) throw new Error('Não foi possível gerar a imagem recortada.');
 

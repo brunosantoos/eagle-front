@@ -1,6 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { useSiteContent } from "../context/SiteContentProvider";
@@ -61,6 +61,15 @@ const SECOND_HERO_ALIGN: Record<
   right: { container: "items-end", text: "text-right" },
 };
 
+/** De quanto em quanto tempo o carrossel avança sozinho. */
+const CAROUSEL_AUTOPLAY_MS = 3000;
+
+/**
+ * Quanto o avanço automático espera depois que a pessoa mexe no carrossel.
+ * Sem isso o automático "briga" com quem está navegando na mão.
+ */
+const CAROUSEL_RESUME_MS = 8000;
+
 export default function Home() {
   const { content } = useSiteContent();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -87,16 +96,65 @@ export default function Home() {
     [workouts],
   );
 
-  const scroll = (direction: "left" | "right") => {
-    if (scrollContainerRef.current) {
-      const scrollAmount =
-        scrollContainerRef.current.clientWidth > 768 ? 800 : 320;
-      scrollContainerRef.current.scrollBy({
-        left: direction === "left" ? -scrollAmount : scrollAmount,
+  /** true enquanto o ponteiro está sobre o carrossel. */
+  const [carouselHovered, setCarouselHovered] = useState(false);
+  /** Momento a partir do qual o automático pode voltar (ver CAROUSEL_RESUME_MS). */
+  const autoplayResumeAtRef = useRef(0);
+
+  /**
+   * Largura de um card + o espaço entre eles, lida do próprio DOM.
+   *
+   * Medir em vez de chutar um número fixo é o que faz um clique (ou um passo do
+   * automático) andar exatamente uma imagem em qualquer tela — o container tem
+   * `snap-center`, então parar no meio de dois cards deixaria o giro torto.
+   */
+  const carouselStep = useCallback(() => {
+    const container = scrollContainerRef.current;
+    const card = container?.firstElementChild as HTMLElement | null;
+    if (!container || !card) return 320;
+    const styles = window.getComputedStyle(container);
+    const gap = Number.parseFloat(styles.columnGap || styles.gap || "0") || 0;
+    return card.offsetWidth + gap;
+  }, []);
+
+  const scroll = useCallback(
+    (direction: "left" | "right") => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const amount = carouselStep();
+      container.scrollBy({
+        left: direction === "left" ? -amount : amount,
         behavior: "smooth",
       });
-    }
-  };
+    },
+    [carouselStep],
+  );
+
+  /** Segura o automático por um tempo depois de uma ação da pessoa. */
+  const holdAutoplay = useCallback(() => {
+    autoplayResumeAtRef.current = Date.now() + CAROUSEL_RESUME_MS;
+  }, []);
+
+  /**
+   * Avanço automático, uma imagem por vez.
+   *
+   * Não roda com o ponteiro em cima (a pessoa está olhando o card), com a aba
+   * em segundo plano (rolar escondido só gasta bateria e bagunça a posição) nem
+   * para quem pediu menos animação no sistema.
+   */
+  useEffect(() => {
+    if (workouts.length < 2) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    const timer = setInterval(() => {
+      if (carouselHovered) return;
+      if (document.hidden) return;
+      if (Date.now() < autoplayResumeAtRef.current) return;
+      scroll("right");
+    }, CAROUSEL_AUTOPLAY_MS);
+
+    return () => clearInterval(timer);
+  }, [workouts.length, carouselHovered, scroll]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -348,7 +406,12 @@ export default function Home() {
             />
           </div>
 
-          <div className="relative group max-w-[1400px] mx-auto">
+          <div
+            className="relative group max-w-[1400px] mx-auto"
+            onMouseEnter={() => setCarouselHovered(true)}
+            onMouseLeave={() => setCarouselHovered(false)}
+            onPointerDown={holdAutoplay}
+          >
             {/* Side Fade Overlays - Increased for more prominence */}
             <div
               className="absolute left-0 top-0 bottom-12 w-64 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"
@@ -427,7 +490,10 @@ export default function Home() {
             {/* Navigation Arrows */}
             <div className="flex justify-center items-center gap-16 mt-8">
               <button
-                onClick={() => scroll("left")}
+                onClick={() => {
+                  holdAutoplay();
+                  scroll("left");
+                }}
                 className="w-56 h-[3rem] flex items-center justify-center border border-gray-300 rounded-full hover:border-black hover:bg-black hover:text-white text-black transition-all duration-500 group/btn"
                 aria-label="Scroll left"
               >
@@ -436,7 +502,10 @@ export default function Home() {
                 </span>
               </button>
               <button
-                onClick={() => scroll("right")}
+                onClick={() => {
+                  holdAutoplay();
+                  scroll("right");
+                }}
                 className="w-56 h-[3rem] flex items-center justify-center border border-gray-300 rounded-full hover:border-black hover:bg-black hover:text-white text-black transition-all duration-500 group/btn"
                 aria-label="Scroll right"
               >

@@ -62,7 +62,8 @@ Build precisa do submodule presente — sem ele `src/lib/trpc.ts` quebra na reso
 - Rótulo de campo no admin: `<FieldHead label path />` (não `<label className={lbCls}>`) — traz junto o botão de formatação do campo.
 - Sliders de config: componente `SliderField` (topo de `AdminDashboard.tsx`); cores: `ColorField` (valor `''` = padrão do site).
 - Rodapé: contato com campo vazio simplesmente não aparece — é assim que se oculta telefone/e-mail/endereço/rede social.
-- Carrossel da Home é configurável em `content.home.carousel` (cores, tamanho de fonte dos cards, véu branco e degradê lateral).
+- Carrossel da Home é configurável em `content.home.carousel` (cores, tamanho de fonte dos cards, véu branco e degradê lateral). Avança sozinho a cada 3s (`CAROUSEL_AUTOPLAY_MS` em `Home.tsx`), pausando com o ponteiro em cima, com a aba em segundo plano, por 8s depois de uma ação da pessoa e para `prefers-reduced-motion`. O passo é medido no DOM (largura do card + gap), não um número fixo — é o que faz andar exatamente uma imagem em qualquer tela.
+- Botão só ganha mãozinha por causa da regra em `index.css` (`button:not(:disabled)`); o navegador não põe `cursor: pointer` em `<button>`, só em link.
 
 ## Painel admin — seções por role
 
@@ -92,11 +93,18 @@ Gating: `AdminAuthProvider` expõe `role`; `AdminDashboard` filtra `allowedSecti
 
 Componente reutilizável `src/components/admin/ImageUploader.tsx`. NÃO mostra URL pro usuário — só preview + botão trocar + "Recortar imagem". Upload automático ao escolher arquivo, via `src/lib/upload.ts` (`uploadFile`) que chama `POST /api/upload` no back.
 
-**Compressão:** `src/lib/imageCompress.ts` reduz a imagem no navegador (máx. 2560px, WebP q82) antes
-de subir, e o backend comprime de novo o que passar direto (`eagle-back/src/lib/imageOptimize.ts`).
+**Compressão: o upload não mexe na qualidade.** `src/lib/imageCompress.ts` só entra como rede de
+segurança acima de **15 MB** (reduz para 4500px em WebP q95, para o upload não travar); abaixo disso
+a imagem sobe exatamente como o cliente escolheu. O backend segue a mesma regra
+(`eagle-back/src/lib/imageOptimize.ts`).
+
+Antes as duas pontas comprimiam sempre, em 2560px q82 — perda dupla sobre um arquivo que já vinha
+comprimido da câmera, e o cliente via a diferença. Recomprimir passou a ser um ato explícito, no
+botão "Comprimir imagens já enviadas" (Admin > Mídias).
+
 `uploadFileDetailed()` devolve `originalSize`/`finalSize`/`compressed`; `describeCompression()` monta
-o texto "9.15 MB → 180 KB (-98%)" mostrado no painel. Falha em qualquer etapa manda o arquivo
-original — o upload nunca depende da compressão ter dado certo.
+o texto "9.15 MB → 180 KB (-98%)" mostrado no painel, e agora quase sempre não aparece — é o
+esperado. Falha em qualquer etapa manda o arquivo original.
 
 **Regra:** o conteúdo grava sempre o caminho **relativo** (`/uploads/<arquivo>`). O host do backend entra
 só no render, com `resolveMediaUrl()` de `src/lib/mediaUrl.ts`. Todo `<img>`/`<video>` que exibe mídia do
@@ -129,8 +137,8 @@ chamar "uploads".
 
 `src/components/admin/ImageCropModal.tsx` — canvas nativo, sem lib externa e sem processamento no
 servidor: arrasta/zoom dentro da moldura, presets de proporção (original, 16:9, 4:3, 1:1, 4:5, 9:16),
-guias de terços, prévia com máscara. Gera WebP (fallback JPEG) com no máximo 1920px de largura e sobe
-como arquivo novo. Disponível em qualquer `ImageUploader` (Home/carrossel/hero) e na aba Mídias
+guias de terços, prévia com máscara. Gera WebP (fallback JPEG) q95 com no máximo 3200px de largura e
+sobe como arquivo novo — recorte é reencode inevitável, então o teto e a qualidade são altos. Disponível em qualquer `ImageUploader` (Home/carrossel/hero) e na aba Mídias
 (que cobre as imagens de Sobre).
 
 ## Configuração de e-mail
