@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { memo, useRef, useState } from 'react';
-import { Loader2, Upload, Video } from 'lucide-react';
+import { Loader2, Trash2, Upload, Video } from 'lucide-react';
 import { resolveMediaUrl } from '../../lib/mediaUrl';
 import { uploadFile } from '../../lib/upload';
 
@@ -96,6 +96,23 @@ function VideoUploaderInner({
           </>
         )}
       </button>
+      {/*
+        Esvazia o campo. O arquivo continua no servidor — sai só a referência,
+        e dá para voltar atrás enquanto a seção não for salva.
+      */}
+      {value && !uploading && (
+        <button
+          type="button"
+          onClick={() => {
+            onChange('');
+            setError(null);
+          }}
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-red-400 transition-colors"
+        >
+          <Trash2 size={12} />
+          Remover vídeo
+        </button>
+      )}
       {error && <p className="text-[11px] text-red-400">{error}</p>}
     </div>
   );

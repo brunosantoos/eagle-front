@@ -6,6 +6,7 @@ import {
   ImageIcon,
   Loader2,
   Pencil,
+  Trash2,
   Wand2,
 } from 'lucide-react';
 import { trpc } from '../../lib/trpc';
@@ -488,24 +489,43 @@ export function AdminMediaPanel({
                   )}
                 </div>
                 {!url ? (
-                  <p className="text-xs text-amber-600/90 mt-2">URL vazia</p>
-                ) : kind === 'image' ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCropField({
-                        key,
-                        title,
-                        aspect: framing?.aspect,
-                        note: framing?.note,
-                      })
-                    }
-                    className="mt-2 inline-flex items-center gap-1.5 self-start text-xs text-zinc-400 hover:text-eagle-gold transition-colors"
-                  >
-                    <Pencil size={12} />
-                    Editar imagem
-                  </button>
-                ) : null}
+                  <p className="text-xs text-amber-600/90 mt-2">
+                    Sem mídia — o site não exibe nada neste espaço.
+                  </p>
+                ) : (
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                    {kind === 'image' && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCropField({
+                            key,
+                            title,
+                            aspect: framing?.aspect,
+                            note: framing?.note,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-eagle-gold transition-colors"
+                      >
+                        <Pencil size={12} />
+                        Editar imagem
+                      </button>
+                    )}
+                    {/*
+                      Esvazia o campo. O arquivo continua no servidor — só a
+                      referência sai do conteúdo, então dá para voltar atrás
+                      enquanto a seção não for salva.
+                    */}
+                    <button
+                      type="button"
+                      onClick={() => patch(key, '')}
+                      className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 size={12} />
+                      Remover {kind === 'video' ? 'vídeo' : 'imagem'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           );

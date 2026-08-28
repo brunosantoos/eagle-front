@@ -91,6 +91,25 @@ export default function Franchise() {
           <div className="absolute inset-0 z-10 bg-gradient-to-l from-eagle-black to-transparent"></div>
         </div>
 
+        {/*
+          Transição do hero escuro para a seção branca de baixo.
+
+          Fica dentro do hero, e não numa faixa separada entre as duas seções,
+          porque o fundo daqui é feito de camadas: o gradiente horizontal do
+          <section> mais a máscara escura acima, que só cobre a metade direita.
+          Uma faixa externa teria que repetir essa pilha inteira para casar a
+          cor no ponto de encontro — e foi o que deixou a emenda reta de um lado
+          e degradê do outro. Por cima, o topo é transparente e mostra o hero
+          real, seja ele qual for.
+
+          z-10 igual ao do conteúdo: vem antes dele no DOM, então cobre o fundo
+          e passa por baixo do texto e do vídeo.
+        */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-40 md:h-64 bg-gradient-to-b from-white/0 via-white/55 to-white"
+        />
+
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             <motion.div
@@ -150,21 +169,7 @@ export default function Franchise() {
         </div>
       </section>
 
-      {/*
-        Transição do hero escuro para a seção branca.
-        A camada de baixo repete o gradiente horizontal do hero, então o topo da
-        faixa tem exatamente a cor da borda de baixo dele em toda a largura; a
-        camada de cima leva isso até o branco. Sem as duas, o degradê só bate no
-        lado esquerdo e o corte continua aparecendo do lado direito.
-      */}
-      <div
-        aria-hidden
-        className="relative h-40 md:h-64 bg-gradient-to-l from-zinc-700 via-eagle-dark to-black"
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/55 to-white" />
-      </div>
-
-      <section className="pb-24 bg-white">
+      <section className="py-24 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto mb-20">
             <SiteText

@@ -62,7 +62,7 @@ Build precisa do submodule presente — sem ele `src/lib/trpc.ts` quebra na reso
 - Rótulo de campo no admin: `<FieldHead label path />` (não `<label className={lbCls}>`) — traz junto o botão de formatação do campo.
 - Sliders de config: componente `SliderField` (topo de `AdminDashboard.tsx`); cores: `ColorField` (valor `''` = padrão do site).
 - Rodapé: contato com campo vazio simplesmente não aparece — é assim que se oculta telefone/e-mail/endereço/rede social.
-- Carrossel da Home é configurável em `content.home.carousel` (cores, tamanho de fonte dos cards, véu branco e degradê lateral). Avança sozinho a cada 3s (`CAROUSEL_AUTOPLAY_MS` em `Home.tsx`), pausando com o ponteiro em cima, com a aba em segundo plano, por 8s depois de uma ação da pessoa e para `prefers-reduced-motion`. O passo é medido no DOM (largura do card + gap), não um número fixo — é o que faz andar exatamente uma imagem em qualquer tela.
+- Carrossel da Home é configurável em `content.home.carousel` (cores, tamanho de fonte dos cards, véu branco e degradê lateral). Gira sozinho e contínuo, `CAROUSEL_SPEED_PX_PER_SEC` (26 px/s) em `Home.tsx`, por `requestAnimationFrame` com deslocamento calculado pelo tempo decorrido — por quadro a velocidade mudaria conforme a tela (60/120 Hz). Pausa com o ponteiro em cima, com a aba em segundo plano, por 8s depois de uma ação da pessoa e para `prefers-reduced-motion`. **Não pode ter `snap-x snap-mandatory`**: o encaixe obrigatório puxa o container de volta a cada quadro e o giro vira tremedeira. As setas andam um card, medido no DOM (largura + gap).
 - Botão só ganha mãozinha por causa da regra em `index.css` (`button:not(:disabled)`); o navegador não põe `cursor: pointer` em `<button>`, só em link.
 
 ## Painel admin — seções por role
@@ -105,6 +105,10 @@ botão "Comprimir imagens já enviadas" (Admin > Mídias).
 `uploadFileDetailed()` devolve `originalSize`/`finalSize`/`compressed`; `describeCompression()` monta
 o texto "9.15 MB → 180 KB (-98%)" mostrado no painel, e agora quase sempre não aparece — é o
 esperado. Falha em qualquer etapa manda o arquivo original.
+
+Todo campo de mídia tem **Remover** (`ImageUploader`, `VideoUploader` e a aba Mídias): esvazia o
+campo no conteúdo e o site deixa de exibir aquele espaço. O arquivo continua no servidor — sai só a
+referência, então dá para voltar atrás enquanto a seção não for salva.
 
 **Regra:** o conteúdo grava sempre o caminho **relativo** (`/uploads/<arquivo>`). O host do backend entra
 só no render, com `resolveMediaUrl()` de `src/lib/mediaUrl.ts`. Todo `<img>`/`<video>` que exibe mídia do

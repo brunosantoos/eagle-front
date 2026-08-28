@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { memo, useRef, useState } from 'react';
-import { ImageIcon, Loader2, Pencil, Upload } from 'lucide-react';
+import { ImageIcon, Loader2, Pencil, Trash2, Upload } from 'lucide-react';
 import { resolveMediaUrl } from '../../lib/mediaUrl';
 import { describeCompression, uploadFileDetailed } from '../../lib/upload';
 import { ImageCropModal, type ImageEffectsConfig } from './ImageCropModal';
@@ -128,6 +128,24 @@ function ImageUploaderInner({
             >
               <Pencil size={12} />
               Editar imagem
+            </button>
+          )}
+          {/*
+            Esvazia o campo. O arquivo continua no servidor — sai só a
+            referência, e dá para voltar atrás enquanto a seção não for salva.
+          */}
+          {value && (
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                setCompressionNote(null);
+                setError(null);
+              }}
+              className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-red-400 transition-colors"
+            >
+              <Trash2 size={12} />
+              Remover imagem
             </button>
           )}
         </div>

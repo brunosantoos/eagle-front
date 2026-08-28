@@ -61,11 +61,16 @@ const SECOND_HERO_ALIGN: Record<
   right: { container: "items-end", text: "text-right" },
 };
 
-/** De quanto em quanto tempo o carrossel avança sozinho. */
-const CAROUSEL_AUTOPLAY_MS = 3000;
+/**
+ * Velocidade do giro contínuo do carrossel, em pixels por segundo.
+ *
+ * Devagar de propósito: o movimento é ambientação, não navegação. Rápido
+ * demais e a pessoa não consegue ler o card enquanto ele passa.
+ */
+const CAROUSEL_SPEED_PX_PER_SEC = 26;
 
 /**
- * Quanto o avanço automático espera depois que a pessoa mexe no carrossel.
+ * Quanto o giro automático espera depois que a pessoa mexe no carrossel.
  * Sem isso o automático "briga" com quem está navegando na mão.
  */
 const CAROUSEL_RESUME_MS = 8000;
@@ -136,25 +141,47 @@ export default function Home() {
   }, []);
 
   /**
-   * Avanço automático, uma imagem por vez.
+   * Giro contínuo, alguns pixels por quadro.
+   *
+   * `requestAnimationFrame` em vez de um `setInterval` que pula um card por vez:
+   * o passo grande dava um solavanco a cada intervalo, e aqui o movimento é
+   * ambientação — tem que passar despercebido. O deslocamento é calculado pelo
+   * tempo decorrido, não por quadro, senão a velocidade mudaria conforme a taxa
+   * de atualização da tela (60 Hz, 120 Hz, aba ocupada).
    *
    * Não roda com o ponteiro em cima (a pessoa está olhando o card), com a aba
    * em segundo plano (rolar escondido só gasta bateria e bagunça a posição) nem
    * para quem pediu menos animação no sistema.
    */
   useEffect(() => {
-    if (workouts.length < 2) return;
+    const container = scrollContainerRef.current;
+    if (!container || workouts.length < 2) return;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
 
-    const timer = setInterval(() => {
-      if (carouselHovered) return;
-      if (document.hidden) return;
-      if (Date.now() < autoplayResumeAtRef.current) return;
-      scroll("right");
-    }, CAROUSEL_AUTOPLAY_MS);
+    let frame = 0;
+    let previous = performance.now();
+    // Sobra de menos de 1px entre quadros. Sem acumular, o navegador que
+    // arredonda `scrollLeft` engoliria o movimento e o carrossel ficaria parado.
+    let pending = 0;
 
-    return () => clearInterval(timer);
-  }, [workouts.length, carouselHovered, scroll]);
+    const step = (now: number) => {
+      const elapsed = now - previous;
+      previous = now;
+      frame = requestAnimationFrame(step);
+
+      if (carouselHovered || document.hidden) return;
+      if (Date.now() < autoplayResumeAtRef.current) return;
+
+      pending += (CAROUSEL_SPEED_PX_PER_SEC * elapsed) / 1000;
+      const whole = Math.floor(pending);
+      if (whole < 1) return;
+      pending -= whole;
+      container.scrollLeft += whole;
+    };
+
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [workouts.length, carouselHovered]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -425,7 +452,10 @@ export default function Home() {
             {/* Scroll Container */}
             <div
               ref={scrollContainerRef}
-              className="flex gap-6 md:gap-10 overflow-x-auto snap-x snap-mandatory pb-12 pt-4 px-[calc(50%-140px)] md:px-[calc(50%-190px)] hide-scrollbar"
+              // Sem `snap-x snap-mandatory`: o encaixe obrigatório puxa o
+              // container de volta para o card mais próximo a cada quadro e o
+              // giro contínuo vira tremedeira.
+              className="flex gap-6 md:gap-10 overflow-x-auto pb-12 pt-4 px-[calc(50%-140px)] md:px-[calc(50%-190px)] hide-scrollbar"
             >
               {displayWorkouts.map((workout, idx) => {
                 // O carrossel repete a lista três vezes para o giro ficar
@@ -436,7 +466,7 @@ export default function Home() {
                 return (
                 <div
                   key={`${workout.label}-${idx}`}
-                  className="min-w-[280px] md:min-w-[380px] h-[480px] snap-center relative rounded-[2.5rem] shadow-xl overflow-hidden group/card border border-transparent hover:border-eagle-red/30 transition-all duration-500"
+                  className="min-w-[280px] md:min-w-[380px] h-[480px] relative rounded-[2.5rem] shadow-xl overflow-hidden group/card border border-transparent hover:border-eagle-red/30 transition-all duration-500"
                 >
                   <img
                     src={resolveMediaUrl(workout.img)}
