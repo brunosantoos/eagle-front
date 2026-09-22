@@ -9,7 +9,7 @@
  *
  * Compressão passou a ser um ato explícito, no botão "Comprimir imagens já
  * enviadas" (Admin > Mídias). Aqui só sobra o caso extremo: arquivo tão grande
- * que o upload travaria ou estouraria o limite de 100 MB da API.
+ * que o upload travaria ou estouraria o limite de 200 MB da API.
  *
  * Falha de qualquer etapa devolve o arquivo original — o upload nunca depende
  * desta função ter dado certo.
