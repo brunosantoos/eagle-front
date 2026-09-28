@@ -5,24 +5,44 @@ import { resolveMediaUrl } from '../../lib/mediaUrl';
 import { describeCompression, uploadFileDetailed } from '../../lib/upload';
 import { ImageCropModal, type ImageEffectsConfig } from './ImageCropModal';
 
+/**
+ * Campo de imagem do painel.
+ *
+ * Regra que vale em todo lugar: **escolher o arquivo já envia**. Não existe um
+ * segundo botão de "enviar" — a aba Mídias tinha um, e era o principal motivo
+ * de "subi a imagem e não mudou nada": quem escolhia o arquivo achava que tinha
+ * acabado. O que sobra para o usuário fazer depois é salvar a seção, e disso
+ * cuida a barra no fim da tela.
+ *
+ * Arrastar e soltar em cima do preview faz o mesmo que clicar.
+ */
+
 function ImageUploaderInner({
   value,
   onChange,
   label = 'Imagem',
-  aspect = '16/9',
+  aspect,
   maxWidth = '220px',
   hint,
+  where,
   fieldNote,
   effects,
 }: {
   value: string;
   onChange: (url: string) => void;
   label?: string;
-  /** Proporção exata do espaço no site — vira o preset "Campo do site". */
+  /**
+   * Proporção exata do espaço no site — vira o preset "Campo do site" no
+   * editor de recorte. **Ausente de propósito** em logo e ilustração: o site
+   * exibe a imagem inteira, então o preview não corta e o recorte abre em
+   * "Original".
+   */
   aspect?: string;
   maxWidth?: string;
   /** Texto auxiliar exibido sob o label (ex.: dimensão recomendada). */
   hint?: string;
+  /** Onde a imagem aparece no site — a frase que dispensa adivinhação. */
+  where?: string;
   /** Observação sobre o enquadramento, exibida no editor de recorte. */
   fieldNote?: string;
   /** Máscara e desfoque do campo, editáveis no modal. Ausente = só recorte. */
@@ -32,10 +52,16 @@ function ImageUploaderInner({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
   /** Resumo da compressão do último envio (ex.: '9.15 MB → 180 KB'). */
   const [compressionNote, setCompressionNote] = useState<string | null>(null);
+  /** Some sozinho no próximo envio — é só a confirmação de que o upload foi. */
+  const [justUploaded, setJustUploaded] = useState(false);
 
   const handlePick = () => inputRef.current?.click();
+
+  /** A moldura precisa de alguma forma mesmo quando o campo não tem proporção fixa. */
+  const frameAspect = aspect ?? '16/9';
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -45,11 +71,13 @@ function ImageUploaderInner({
     setUploading(true);
     setError(null);
     setCompressionNote(null);
+    setJustUploaded(false);
     try {
       // Grava caminho relativo — o host entra no render (ver lib/mediaUrl.ts).
       const result = await uploadFileDetailed(file, file.name);
       onChange(result.url);
       setCompressionNote(describeCompression(result));
+      setJustUploaded(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro no upload.');
     } finally {
@@ -60,37 +88,74 @@ function ImageUploaderInner({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-zinc-300 tracking-wide">{label}</p>
+      <div>
+        <p className="text-xs font-medium text-zinc-300 tracking-wide">{label}</p>
+        {where && (
+          <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">
+            {where}
+          </p>
+        )}
+      </div>
       {hint && (
         <p className="text-[11px] font-medium text-eagle-gold/90">{hint}</p>
       )}
       <div
-        className="relative rounded-xl border border-zinc-700/70 bg-zinc-950/40 overflow-hidden group w-full"
-        style={{ aspectRatio: aspect, maxWidth }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!uploading) setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file && !uploading) void handleFile(file);
+        }}
+        className={`relative rounded-xl border bg-zinc-950/40 overflow-hidden group w-full transition-colors ${
+          dragging
+            ? 'border-eagle-gold border-solid ring-2 ring-eagle-gold/30'
+            : 'border-zinc-700/70'
+        }`}
+        style={{ aspectRatio: frameAspect, maxWidth }}
       >
         {value ? (
           <img
             src={resolveMediaUrl(value)}
             alt=""
-            className="w-full h-full object-cover"
+            className={`w-full h-full ${aspect ? 'object-cover' : 'object-contain p-2'}`}
             onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.35'; }}
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-600 gap-2">
-            <ImageIcon size={28} strokeWidth={1.5} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-600 gap-1.5 px-3 text-center">
+            <ImageIcon size={26} strokeWidth={1.5} />
             <span className="text-xs">Sem imagem</span>
+            <span className="text-[10px] text-zinc-700">
+              Clique ou arraste um arquivo
+            </span>
           </div>
         )}
+        {/*
+          O overlay cobre o preview inteiro: a área clicável é a imagem toda,
+          não um botãozinho. Fica sempre visível enquanto envia e quando o
+          arquivo está sendo arrastado por cima.
+        */}
         <button
           type="button"
           onClick={handlePick}
           disabled={uploading}
-          className="absolute inset-0 flex items-center justify-center gap-2 bg-black/65 backdrop-blur-sm text-white text-xs font-semibold opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity disabled:opacity-100 disabled:cursor-not-allowed"
+          className={`absolute inset-0 flex items-center justify-center gap-2 bg-black/65 backdrop-blur-sm text-white text-xs font-semibold transition-opacity focus-visible:opacity-100 disabled:cursor-not-allowed ${
+            uploading || dragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          }`}
         >
           {uploading ? (
             <>
               <Loader2 size={14} className="animate-spin" />
               Enviando…
+            </>
+          ) : dragging ? (
+            <>
+              <Upload size={14} />
+              Solte para enviar
             </>
           ) : (
             <>
@@ -140,6 +205,7 @@ function ImageUploaderInner({
               onClick={() => {
                 onChange('');
                 setCompressionNote(null);
+                setJustUploaded(false);
                 setError(null);
               }}
               className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-red-400 transition-colors"
@@ -151,8 +217,11 @@ function ImageUploaderInner({
         </div>
       )}
       {error && <p className="text-[11px] text-red-400">{error}</p>}
-      {!error && compressionNote && (
-        <p className="text-[11px] text-emerald-400/90">{compressionNote}</p>
+      {!error && justUploaded && (
+        <p className="text-[11px] text-emerald-400/90">
+          Imagem enviada. Salve a seção para publicar no site.
+          {compressionNote ? ` · ${compressionNote}` : ''}
+        </p>
       )}
       <ImageCropModal
         open={editOpen}
@@ -174,6 +243,10 @@ function ImageUploaderInner({
  * Os callbacks ficam fora da comparação porque o dashboard os recria a cada
  * tecla digitada em qualquer campo da seção — e cada preview aqui é um `<img>`
  * de verdade sendo remontado à toa.
+ *
+ * `effects` é comparado **valor a valor**, e não por referência: o dashboard
+ * monta esse objeto na hora do render, então comparar a referência reprovaria
+ * sempre e a memoização não valeria nada justo nos campos que a têm.
  */
 export const ImageUploader = memo(
   ImageUploaderInner,
@@ -183,6 +256,11 @@ export const ImageUploader = memo(
     prev.aspect === next.aspect &&
     prev.maxWidth === next.maxWidth &&
     prev.hint === next.hint &&
+    prev.where === next.where &&
     prev.fieldNote === next.fieldNote &&
-    prev.effects === next.effects,
+    Boolean(prev.effects) === Boolean(next.effects) &&
+    prev.effects?.maskEnabled === next.effects?.maskEnabled &&
+    prev.effects?.maskOpacity === next.effects?.maskOpacity &&
+    prev.effects?.blur === next.effects?.blur &&
+    prev.effects?.hint === next.effects?.hint,
 );

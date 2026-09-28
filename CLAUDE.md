@@ -57,7 +57,7 @@ Build precisa do submodule presente — sem ele `src/lib/trpc.ts` quebra na reso
 - Fontes: `font-sans` (Inter), `font-heading` (Montserrat), `font-vonique` (display Eagle).
 - Forms admin: classes compartilhadas `inCls` / `taCls` / `lbCls` no topo de `AdminDashboard.tsx`.
 - Section card: componente `<Section title subtitle>` com linha gradient red no topo.
-- Save bar: `<SectionSaveBar onSave label>` — botão vermelho com ring + dot amber pulsante.
+- Save bar: `<SectionSaveBar onSave label dirty>` (`components/admin/SectionSaveBar.tsx`) — `dirty` é estado real, comparado contra o conteúdo publicado: pendente = botão vermelho + dot âmbar pulsante, tudo salvo = botão apagado + check verde.
 - Role badges: admin `bg-eagle-red/15 text-eagle-gold`, editor `bg-blue-500/15 text-blue-200`, user `bg-emerald-500/15 text-emerald-200`.
 - Rótulo de campo no admin: `<FieldHead label path />` (não `<label className={lbCls}>`) — traz junto o botão de formatação do campo.
 - Sliders de config: componente `SliderField` (topo de `AdminDashboard.tsx`); cores: `ColorField` (valor `''` = padrão do site).
@@ -91,7 +91,17 @@ Gating: `AdminAuthProvider` expõe `role`; `AdminDashboard` filtra `allowedSecti
 
 ## Uploads e URLs de mídia
 
-Componente reutilizável `src/components/admin/ImageUploader.tsx`. NÃO mostra URL pro usuário — só preview + botão trocar + "Recortar imagem". Upload automático ao escolher arquivo, via `src/lib/upload.ts` (`uploadFile`) que chama `POST /api/upload` no back.
+Componentes reutilizáveis `src/components/admin/ImageUploader.tsx` e `VideoUploader.tsx`. NÃO mostram
+URL pro usuário — só preview + trocar + "Editar imagem" + remover.
+
+**Regra: escolher o arquivo já envia.** Não existe segundo botão de "enviar" em lugar nenhum, e
+arrastar-e-soltar em cima do preview faz o mesmo que clicar. A aba Mídias tinha um formulário
+próprio, com `<input type="file">` e um botão "Enviar arquivo" separado — três passos para trocar uma
+imagem, dois deles invisíveis, e a origem do "subo a imagem e não muda nada". Depois do upload o
+campo confirma com "Imagem enviada. Salve a seção para publicar no site.", que é o passo que sobra.
+
+`aspect` ausente não é esquecimento: em logo e ilustração o site exibe a imagem inteira, então o
+preview usa `object-contain` e o editor de recorte abre em "Original".
 
 **Compressão: o upload não mexe na qualidade.** `src/lib/imageCompress.ts` só entra como rede de
 segurança acima de **15 MB** (reduz para 4500px em WebP q95, para o upload não travar); abaixo disso
@@ -115,14 +125,39 @@ só no render, com `resolveMediaUrl()` de `src/lib/mediaUrl.ts`. Todo `<img>`/`<
 `SiteContent` passa por ela — inclusive previews do admin. Gravar URL absoluta quebra o site quando o
 domínio muda (era a causa do bug "mídias não replicam").
 
+## Publicar conteúdo — `publish()` no AdminDashboard
+
+Todo save de seção passa por `publish(slice, mensagem)`, e ele manda **sempre** os três mapas
+compartilhados junto da fatia da seção:
+
+```ts
+textStyles, media, mediaEffects
+```
+
+São mapas alimentados de dentro de qualquer aba (a formatação no próprio campo de texto, a foto do
+topo da Sobre na aba Sobre). Publicar cada um só na aba de origem era o bug **"troquei a imagem e
+não mudou nada"**: salvar outra seção regravava o conteúdo — e o `localStorage` — sem a mídia nova, e
+a troca sumia no recarregamento. `termsOfUse` já tinha morrido do mesmo jeito.
+
+`dirtySections` (useMemo, JSON do rascunho vs. do publicado) alimenta a `SectionSaveBar`, o ponto
+âmbar na lateral/pills e o selo "Alterações não publicadas" no cabeçalho. A comparação é por JSON
+porque o rascunho é um `structuredClone` — por identidade tudo seria "sujo" desde o primeiro render.
+Mídia e formatação são **atribuídas à página onde aparecem** (`group` do catálogo, prefixo do
+caminho), senão o ponto acenderia em todas as seções a cada upload.
+
 ## Comprimir o acervo já enviado
 
 Botão **Comprimir imagens já enviadas** em Admin > Mídias (`UploadsOptimizer` em
 `AdminMediaPanel.tsx`), sobre o router `mediaLibrary` (`contentProcedure`).
 
-Dois passos de propósito — **Analisar** (simulação, não escreve nada) e **Comprimir agora** —
-porque reescrever imagem não tem desfazer. Nome e extensão são preservados: o `SiteContent` guarda o
-caminho do arquivo, e trocar a extensão quebraria as referências do site.
+Dois passos de propósito — **Analisar** (simulação, não escreve nada) e só então comprimir — porque
+reescrever imagem não tem desfazer. Pelo mesmo motivo a análise é uma **lista com seleção**: checkbox
+por linha, botão "Comprimir" na própria linha e "Comprimir N selecionadas" no rodapé. Dá para
+comprimir uma imagem, conferir no site e voltar para as outras; só sai da lista o que o servidor
+confirmou ter reescrito. `optimizeUploads` recebe `{ files?: string[] }` — sem isso, acervo inteiro.
+
+Nome e extensão são preservados: o `SiteContent` guarda o caminho do arquivo, e trocar a extensão
+quebraria as referências do site.
 
 O mesmo trabalho pela linha de comando: `make uploads-optimize` / `make uploads-optimize-apply`.
 A lógica é única, em `eagle-back/src/lib/optimizeUploads.ts`.
@@ -142,8 +177,8 @@ chamar "uploads".
 `src/components/admin/ImageCropModal.tsx` — canvas nativo, sem lib externa e sem processamento no
 servidor: arrasta/zoom dentro da moldura, presets de proporção (original, 16:9, 4:3, 1:1, 4:5, 9:16),
 guias de terços, prévia com máscara. Gera WebP (fallback JPEG) q95 com no máximo 3200px de largura e
-sobe como arquivo novo — recorte é reencode inevitável, então o teto e a qualidade são altos. Disponível em qualquer `ImageUploader` (Home/carrossel/hero) e na aba Mídias
-(que cobre as imagens de Sobre).
+sobe como arquivo novo — recorte é reencode inevitável, então o teto e a qualidade são altos.
+Disponível em **todo** `ImageUploader`, o que hoje quer dizer todo campo de imagem do painel.
 
 ## Configuração de e-mail
 
@@ -205,8 +240,7 @@ entre letras e altura da linha — editáveis campo a campo no painel.
 - **Tamanho é um número só.** O valor vale no desktop e vira `clamp()` em `lib/textStyle.ts`,
   encolhendo até 65% (piso de 12px) entre 1280px e 360px de viewport. Pedir dois tamanhos por campo
   seria pedir para o cliente errar o mobile.
-- **Publicação:** `textStyles` entra em **todos** os saves de conteúdo do `AdminDashboard`. A
-  formatação é editada espalhada pelas seções; publicar só a seção ativa deixaria alteração para trás.
+- **Publicação:** ver "Publicar conteúdo" abaixo — `textStyles` entra em **todos** os saves.
 - **Fontes:** nada a fazer. `collectUsedFontIds()` varre o JSON procurando `"<id>"`, e o id salvo em
   `textStyles[].font` já cai nessa varredura.
 
@@ -220,15 +254,37 @@ tecla digitada rodava `getHTML()` — serialização do documento inteiro — em
 seção, e era a causa da lentidão do painel. `ImageUploader` e `VideoUploader` são memoizados pelo
 mesmo motivo. Se for passar callback novo por render, ele **não** pode entrar no comparador.
 
+## Catálogo de mídias — `src/lib/mediaFields.ts`
+
+Fonte única dos 12 campos de `content.media`: rótulo, onde aparece no site, dimensão recomendada,
+proporção real, nota de enquadramento, `group` (a página) e `effectHint` (só nas imagens que o site
+desenha com máscara/desfoque).
+
+Existe porque a mesma imagem é editada em **dois** lugares e os dois têm que dizer a mesma coisa:
+
+- **dentro da aba da página** — Sobre > Topo traz a foto do topo da Sobre, Home > Experiência traz a
+  imagem da experiência, e assim por diante (`<MediaBlock>` + `mediaField()` no `AdminDashboard`);
+- **na biblioteca em Admin > Mídias** — tudo junto, agrupado por página, para conferir o acervo,
+  para o que não tem página dona (logos) e para a compressão.
+
+O `AdminMediaPanel` **não** desenha campo próprio: recebe `renderField` do dashboard, então rótulo,
+proporção e comportamento do upload são literalmente os mesmos dos dois lados. Antes a lista só
+existia na aba Mídias, com nome genérico ("Sobre — fundo do hero") — trocar a foto da Sobre exigia
+sair da Sobre.
+
+`franchiseHeroBg` está marcado `unused`: o site não lê esse campo (o topo da Franquia mostra o
+vídeo). Fica só na biblioteca, sinalizado — sumir com ele do conteúdo quebraria quem tem o valor
+antigo gravado.
+
+**Ao mudar um layout que exibe mídia, atualize a proporção aqui junto.**
+
 ## Editor de recorte — proporção do campo
 
 `ImageCropModal` recebe `aspect` com a proporção **exata** do espaço onde a imagem aparece no site e
-monta o preset "Campo do site", pré-selecionado. As proporções reais vivem em `FIELD_META.framing`
-(`AdminMediaPanel.tsx`) e nos `aspect=` dos `ImageUploader`.
+monta o preset "Campo do site", pré-selecionado. As proporções vêm do catálogo acima.
 
 Antes o modal arredondava a proporção para o preset genérico mais próximo (16:9, 4:3, 1:1, 4:5,
-9:16) — um campo 3:4 abria em 4:5 e o enquadramento nunca fechava com o site. **Ao mudar um layout
-que exibe mídia, atualize a proporção aqui junto.**
+9:16) — um campo 3:4 abria em 4:5 e o enquadramento nunca fechava com o site.
 
 ## Leads — lixeira, situação e cronômetro
 

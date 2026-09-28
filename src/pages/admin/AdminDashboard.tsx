@@ -17,14 +17,13 @@ import {
   PanelLeft,
   Plus,
   RotateCcw,
-  Save,
   Trash2,
   TrendingUp,
   Type,
   Users,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmModal } from '../../components/admin/ConfirmModal';
 import { RichTextEditor } from '../../components/admin/RichTextEditor';
@@ -37,7 +36,15 @@ import { useSiteContent } from '../../context/SiteContentProvider';
 import { useToast } from '../../context/ToastProvider';
 import { CARD_ICON_OPTIONS, resolveCardIcon } from '../../lib/cardIcons';
 import { SOCIAL_PLATFORMS, resolveSocialIcon } from '../../lib/socialIcons';
-import { defaultSiteContent, type HeroMediaType } from '../../lib/siteContent';
+import {
+  defaultSiteContent,
+  type HeroMediaType,
+  type SiteContent,
+  type SiteMedia,
+} from '../../lib/siteContent';
+import { MEDIA_FIELDS, MEDIA_FIELD_BY_KEY } from '../../lib/mediaFields';
+import type { ImageEffectsConfig } from '../../components/admin/ImageCropModal';
+import { SectionSaveBar } from '../../components/admin/SectionSaveBar';
 import { AdminMediaPanel } from './AdminMediaPanel';
 import { AdminTypographyPanel } from './AdminTypographyPanel';
 import { ImageUploader } from '../../components/admin/ImageUploader';
@@ -81,29 +88,28 @@ function Section({
   );
 }
 
-function SectionSaveBar({
-  onSave,
-  label = 'Salvar e publicar no site',
+/**
+ * Moldura dos campos de mídia dentro da aba de uma página.
+ *
+ * A imagem de uma seção passou a ser editada junto do texto dela. Antes ela só
+ * existia na aba Mídias, numa lista de doze campos com nome genérico: para
+ * trocar a foto do topo da Sobre era preciso sair da Sobre, achar
+ * "Sobre — fundo do hero" no meio da lista e voltar.
+ */
+function MediaBlock({
+  title = 'Imagens desta seção',
+  children,
 }: {
-  onSave: () => void;
-  label?: string;
+  title?: string;
+  children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-8 mt-8 border-t border-zinc-800/80">
-      <div className="flex items-start gap-2 max-w-md">
-        <span className="mt-0.5 h-2 w-2 rounded-full bg-amber-400/80 shadow-[0_0_8px_rgba(251,191,36,0.5)] shrink-0" aria-hidden />
-        <p className="text-xs text-zinc-400 leading-relaxed">
-          Alterações ficam visíveis no site só depois de salvar esta seção.
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onSave}
-        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-eagle-red hover:bg-red-700 active:bg-red-800 text-white text-sm font-heading font-semibold shadow-lg shadow-red-900/30 transition-all shrink-0 ring-1 ring-red-500/30 hover:ring-red-400/40"
-      >
-        <Save size={18} strokeWidth={2.5} aria-hidden />
-        {label}
-      </button>
+    <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 p-4 space-y-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
+        <ImageIcon size={12} className="text-eagle-gold" aria-hidden />
+        {title}
+      </p>
+      <div className="flex flex-wrap gap-x-8 gap-y-5">{children}</div>
     </div>
   );
 }
@@ -303,14 +309,38 @@ export default function AdminDashboard() {
   const SAVE_ERROR_MSG =
     'Não foi possível publicar no servidor. Verifique sua conexão e seu login e salve de novo.';
 
-  const saveNavFooter = () => {
+  /**
+   * Publica uma fatia do rascunho no site.
+   *
+   * `textStyles`, `media` e `mediaEffects` vão em **todo** save, não só no da
+   * seção que os edita. São três mapas alimentados de dentro de qualquer aba —
+   * a formatação de um título no próprio campo dele, a foto do topo da Sobre na
+   * aba Sobre — e publicar cada um só na aba de origem era o bug "troquei a
+   * imagem e não mudou nada": salvar outra seção regravava o conteúdo (e o
+   * localStorage) sem a mídia nova, e a troca sumia no recarregamento.
+   */
+  const publish = (
+    slice: (published: SiteContent) => Partial<SiteContent>,
+    okMessage: string,
+  ) => {
     setContent(
       (prev) => ({
         ...prev,
-        // A formatação dos textos é editada campo a campo, espalhada por todas
-        // as seções — publicar o mapa inteiro em qualquer save é o que evita
-        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
         textStyles: structuredClone(draft.textStyles),
+        media: structuredClone(draft.media),
+        mediaEffects: structuredClone(draft.mediaEffects),
+        ...slice(prev),
+      }),
+      {
+        onSuccess: () => success(okMessage),
+        onError: () => error(SAVE_ERROR_MSG),
+      },
+    );
+  };
+
+  const saveNavFooter = () =>
+    publish(
+      () => ({
         nav: structuredClone(draft.nav),
         footer: structuredClone(draft.footer),
         privacyPolicy: structuredClone(draft.privacyPolicy),
@@ -318,104 +348,242 @@ export default function AdminDashboard() {
         // a aba existia no painel, mas nada do que se escrevia lá chegava ao site.
         termsOfUse: structuredClone(draft.termsOfUse),
       }),
-      {
-        onSuccess: () => success('Menu e rodapé salvos e publicados.'),
-        onError: () => error(SAVE_ERROR_MSG),
-      },
+      'Menu e rodapé salvos e publicados.',
     );
-  };
 
-  const saveTypography = () => {
-    setContent(
-      (prev) => ({
-        ...prev,
-        // A formatação dos textos é editada campo a campo, espalhada por todas
-        // as seções — publicar o mapa inteiro em qualquer save é o que evita
-        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
-        textStyles: structuredClone(draft.textStyles),
-        typography: { ...draft.typography },
-      }),
-      {
-        onSuccess: () => success('Fontes do site publicadas.'),
-        onError: () => error(SAVE_ERROR_MSG),
-      },
+  const saveTypography = () =>
+    publish(
+      () => ({ typography: { ...draft.typography } }),
+      'Fontes do site publicadas.',
     );
-  };
 
-  const saveHome = () => {
-    setContent(
-      (prev) => ({
-        ...prev,
-        // A formatação dos textos é editada campo a campo, espalhada por todas
-        // as seções — publicar o mapa inteiro em qualquer save é o que evita
-        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
-        textStyles: structuredClone(draft.textStyles),
-        home: structuredClone(draft.home),
-      }),
-      {
-        onSuccess: () => success('Conteúdo da Home publicado.'),
-        onError: () => error(SAVE_ERROR_MSG),
-      },
+  const saveHome = () =>
+    publish(
+      () => ({ home: structuredClone(draft.home) }),
+      'Conteúdo da Home publicado.',
     );
-  };
 
-  const saveAbout = () => {
-    setContent(
-      (prev) => ({
-        ...prev,
-        // A formatação dos textos é editada campo a campo, espalhada por todas
-        // as seções — publicar o mapa inteiro em qualquer save é o que evita
-        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
-        textStyles: structuredClone(draft.textStyles),
-        about: structuredClone(draft.about),
-      }),
-      {
-        onSuccess: () => success('Página Sobre publicada.'),
-        onError: () => error(SAVE_ERROR_MSG),
-      },
+  const saveAbout = () =>
+    publish(
+      () => ({ about: structuredClone(draft.about) }),
+      'Página Sobre publicada.',
     );
-  };
 
-  const saveFranchise = () => {
-    setContent(
-      (prev) => ({
-        ...prev,
-        // A formatação dos textos é editada campo a campo, espalhada por todas
-        // as seções — publicar o mapa inteiro em qualquer save é o que evita
-        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
-        textStyles: structuredClone(draft.textStyles),
-        franchise: structuredClone(draft.franchise),
-      }),
-      {
-        onSuccess: () => success('Página Franquia publicada.'),
-        onError: () => error(SAVE_ERROR_MSG),
-      },
+  const saveFranchise = () =>
+    publish(
+      () => ({ franchise: structuredClone(draft.franchise) }),
+      'Página Franquia publicada.',
     );
-  };
 
-  const saveMedia = () => {
-    setContent(
-      (prev) => ({
-        ...prev,
-        // Máscara/desfoque são editados dentro do modal "Editar imagem" da aba
-        // Mídias, então precisam ser publicados junto com as imagens.
-        // A formatação dos textos é editada campo a campo, espalhada por todas
-        // as seções — publicar o mapa inteiro em qualquer save é o que evita
-        // "mexi na letra do título e não foi pro ar". Mesmo caso do mediaEffects.
-        textStyles: structuredClone(draft.textStyles),
-        mediaEffects: structuredClone(draft.mediaEffects),
-        home: { ...prev.home, secondHero: structuredClone(draft.home.secondHero) },
+  const saveMedia = () =>
+    publish(
+      (published) => ({
+        // Máscara e desfoque do segundo hero e do topo da Sobre são editados
+        // dentro do modal "Editar imagem", então acompanham as imagens. Só
+        // esses campos: o save da biblioteca não pode publicar texto de outra
+        // seção que ainda está sendo escrito.
+        home: {
+          ...published.home,
+          secondHero: structuredClone(draft.home.secondHero),
+        },
         about: {
-          ...prev.about,
+          ...published.about,
           heroMaskEnabled: draft.about.heroMaskEnabled,
           heroMaskOpacity: draft.about.heroMaskOpacity,
         },
-        media: structuredClone(draft.media),
       }),
-      {
-        onSuccess: () => success('Imagens e vídeos publicados no site.'),
-        onError: () => error(SAVE_ERROR_MSG),
-      },
+      'Imagens e vídeos publicados no site.',
+    );
+
+  /**
+   * Seções com alteração ainda não publicada — é o que acende a barra de save
+   * e o ponto ao lado do item na lateral.
+   *
+   * A comparação é sobre o JSON porque o rascunho nasce de um
+   * `structuredClone`: nada dentro dele compartilha referência com o publicado,
+   * então comparar por identidade acusaria "não salvo" desde o primeiro render.
+   *
+   * `media`, `mediaEffects` e `textStyles` são mapas únicos que o `publish`
+   * manda em todo save, mas o aviso não pode acender em todas as seções por
+   * causa disso — seria ruído. Cada chave é devolvida à **página onde ela
+   * aparece** (o `group` do catálogo de mídia, o prefixo do caminho no caso da
+   * formatação), então o ponto cai na seção em que a pessoa acabou de mexer.
+   */
+  const dirtySections = useMemo(() => {
+    const same = (a: unknown, b: unknown) =>
+      JSON.stringify(a) === JSON.stringify(b);
+
+    const touched = new Set<AdminSectionId>();
+
+    for (const field of MEDIA_FIELDS) {
+      const changed =
+        !same(draft.media[field.key], content.media[field.key]) ||
+        !same(draft.mediaEffects[field.key], content.mediaEffects[field.key]);
+      if (changed) {
+        touched.add(field.group);
+        // A biblioteca em Mídias lista todos os campos, então qualquer troca
+        // de imagem também deixa a seção dela pendente.
+        touched.add('media');
+      }
+    }
+
+    const paths = new Set([
+      ...Object.keys(draft.textStyles),
+      ...Object.keys(content.textStyles),
+    ]);
+    for (const path of paths) {
+      if (same(draft.textStyles[path], content.textStyles[path])) continue;
+      const root = path.split('.')[0];
+      touched.add(
+        root === 'home' || root === 'about' || root === 'franchise'
+          ? root
+          : 'nav-footer',
+      );
+    }
+
+    const own: Partial<Record<AdminSectionId, (c: SiteContent) => unknown>> = {
+      'nav-footer': (c) => [c.nav, c.footer, c.privacyPolicy, c.termsOfUse],
+      home: (c) => c.home,
+      about: (c) => c.about,
+      franchise: (c) => c.franchise,
+      typography: (c) => c.typography,
+      // A aba Mídias publica só a máscara do segundo hero e a do topo da Sobre,
+      // que são editadas dentro do modal "Editar imagem".
+      media: (c) => [
+        c.home.secondHero,
+        c.about.heroMaskEnabled,
+        c.about.heroMaskOpacity,
+      ],
+    };
+
+    const out: Partial<Record<AdminSectionId, boolean>> = {};
+    for (const [id, pick] of Object.entries(own)) {
+      const section = id as AdminSectionId;
+      out[section] = touched.has(section) || !same(pick!(draft), pick!(content));
+    }
+    return out;
+  }, [draft, content]);
+
+  const hasUnsaved = CONTENT_SECTIONS.some((id) => dirtySections[id]);
+
+  /**
+   * Máscara e desfoque de um campo de mídia, para o editor de imagem.
+   *
+   * Só as imagens que o site desenha com efeito têm configuração aqui
+   * (`effectHint` no catálogo); logo e vídeo abrem o modal só com recorte.
+   *
+   * `homeSecondHeroBg` e `aboutHeroBg` já tinham máscara própria na seção da
+   * página. A máscara continua vindo de lá para não existirem dois controles
+   * concorrentes para a mesma coisa; só o desfoque vai para `mediaEffects`.
+   */
+  const mediaEffectsFor = (
+    key: keyof SiteMedia,
+  ): ImageEffectsConfig | undefined => {
+    const hint = MEDIA_FIELD_BY_KEY[key]?.effectHint;
+    if (!hint) return undefined;
+
+    const effect = draft.mediaEffects[key] ?? {
+      maskEnabled: false,
+      maskOpacity: 40,
+      blur: 0,
+    };
+
+    if (key === 'homeSecondHeroBg') {
+      return {
+        maskEnabled: draft.home.secondHero.overlayEnabled,
+        maskOpacity: draft.home.secondHero.overlayOpacity,
+        blur: effect.blur,
+        hint,
+        onChange: ({ maskEnabled, maskOpacity, blur }) =>
+          setDraft((d) => ({
+            ...d,
+            home: {
+              ...d.home,
+              secondHero: {
+                ...d.home.secondHero,
+                overlayEnabled: maskEnabled,
+                overlayOpacity: maskOpacity,
+              },
+            },
+            mediaEffects: {
+              ...d.mediaEffects,
+              [key]: { maskEnabled: false, maskOpacity: 0, blur },
+            },
+          })),
+      };
+    }
+
+    if (key === 'aboutHeroBg') {
+      return {
+        maskEnabled: draft.about.heroMaskEnabled,
+        maskOpacity: draft.about.heroMaskOpacity,
+        blur: effect.blur,
+        hint,
+        onChange: ({ maskEnabled, maskOpacity, blur }) =>
+          setDraft((d) => ({
+            ...d,
+            about: {
+              ...d.about,
+              heroMaskEnabled: maskEnabled,
+              heroMaskOpacity: maskOpacity,
+            },
+            mediaEffects: {
+              ...d.mediaEffects,
+              [key]: { maskEnabled: false, maskOpacity: 0, blur },
+            },
+          })),
+      };
+    }
+
+    return {
+      ...effect,
+      hint,
+      onChange: (next) =>
+        setDraft((d) => ({
+          ...d,
+          mediaEffects: { ...d.mediaEffects, [key]: next },
+        })),
+    };
+  };
+
+  /**
+   * Campo de mídia do site ligado direto em `draft.media`.
+   *
+   * Um só lugar monta esses campos, então a aba da página e a biblioteca em
+   * Mídias mostram exatamente o mesmo controle, com o mesmo rótulo e a mesma
+   * proporção de recorte — que é o que vem do catálogo em `lib/mediaFields.ts`.
+   */
+  const mediaField = (key: keyof SiteMedia, maxWidth?: string) => {
+    const meta = MEDIA_FIELD_BY_KEY[key];
+    const onChange = (url: string) =>
+      setDraft((d) => ({ ...d, media: { ...d.media, [key]: url } }));
+    const hint = meta.dimension ? `Recomendado: ${meta.dimension}` : undefined;
+
+    if (meta.kind === 'video') {
+      return (
+        <VideoUploader
+          label={meta.label}
+          where={meta.where}
+          hint={hint}
+          maxWidth={maxWidth ?? '280px'}
+          value={draft.media[key]}
+          onChange={onChange}
+        />
+      );
+    }
+
+    return (
+      <ImageUploader
+        label={meta.label}
+        where={meta.where}
+        hint={hint}
+        aspect={meta.aspect}
+        fieldNote={meta.note}
+        effects={mediaEffectsFor(key)}
+        maxWidth={maxWidth ?? '260px'}
+        value={draft.media[key]}
+        onChange={onChange}
+      />
     );
   };
 
@@ -528,7 +696,19 @@ export default function AdminDashboard() {
                     >
                       <Icon size={17} strokeWidth={isOn ? 2.25 : 1.8} className={`shrink-0 ${isOn ? 'text-eagle-gold' : 'text-zinc-500 group-hover:text-white'}`} />
                       <span className="flex-1 truncate">{item.label}</span>
-                      {isOn && <span className="h-1.5 w-1.5 rounded-full bg-eagle-gold shadow-[0_0_6px_rgba(212,175,55,0.6)]" />}
+                      {/*
+                        Âmbar pulsando = tem alteração nesta seção que ainda não
+                        foi para o site. Ganha do ponto dourado de "seção ativa"
+                        porque é a informação que muda o que a pessoa faz agora.
+                      */}
+                      {dirtySections[item.id] ? (
+                        <span
+                          title="Alterações não publicadas"
+                          className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.7)] animate-pulse"
+                        />
+                      ) : (
+                        isOn && <span className="h-1.5 w-1.5 rounded-full bg-eagle-gold shadow-[0_0_6px_rgba(212,175,55,0.6)]" />
+                      )}
                     </button>
                   );
                 })}
@@ -588,6 +768,17 @@ export default function AdminDashboard() {
                   </p>
                 )}
               </div>
+              {/*
+                Fica no cabeçalho porque a barra de salvar mora no fim de uma
+                tela longa: quem envia uma imagem e troca de seção precisava
+                rolar até o fim para descobrir que faltava publicar.
+              */}
+              {hasUnsaved && (
+                <span className="hidden md:inline-flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-500/10 text-amber-200/90 border border-amber-500/25">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" aria-hidden />
+                  Alterações não publicadas
+                </span>
+              )}
             </div>
             <div className="flex md:hidden items-center gap-1.5 overflow-x-auto pb-1 -mx-1 scrollbar-thin">
               {sidebarNav.map((item) => {
@@ -605,6 +796,12 @@ export default function AdminDashboard() {
                   >
                     <Icon size={13} strokeWidth={2} />
                     {item.label}
+                    {dirtySections[item.id] && (
+                      <span
+                        title="Alterações não publicadas"
+                        className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -616,94 +813,9 @@ export default function AdminDashboard() {
           <div className="space-y-8 pb-24">
             {active === 'media' && (
               <AdminMediaPanel
-                media={draft.media}
-                onMediaChange={(m) =>
-                  setDraft((d) => ({ ...d, media: m }))
-                }
+                renderField={(key) => mediaField(key)}
                 onSave={saveMedia}
-                effectsFor={(key) => {
-                  // Imagens de conteúdo que o site renderiza com máscara/desfoque.
-                  const HINTS: Partial<Record<keyof typeof draft.media, string>> = {
-                    homeSecondHeroBg: 'Fundo do segundo bloco da Home, atrás do título principal.',
-                    homeExperienceImage: 'Imagem ao lado da lista de diferenciais, na Home.',
-                    homeFranchiseTeaserImage: 'Imagem do bloco de franquia no fim da Home.',
-                    aboutHeroBg: 'Foto do topo da página Sobre, atrás do título.',
-                    aboutStoryImage: 'Imagem ao lado do texto "Nossa história".',
-                    aboutPillarsImage: 'Imagem quadrada ao lado dos pilares da marca.',
-                  };
-                  const hint = HINTS[key];
-                  if (!hint) return undefined; // logos e vídeos: só recorte
-
-                  const effect = draft.mediaEffects[key] ?? {
-                    maskEnabled: false,
-                    maskOpacity: 40,
-                    blur: 0,
-                  };
-
-                  const writeEffect = (next: {
-                    maskEnabled: boolean;
-                    maskOpacity: number;
-                    blur: number;
-                  }) =>
-                    setDraft((d) => ({
-                      ...d,
-                      mediaEffects: { ...d.mediaEffects, [key]: next },
-                    }));
-
-                  // Estas duas imagens já tinham máscara própria na seção (Home > Hero
-                  // e Sobre > Hero). A máscara continua vindo de lá para não existirem
-                  // dois controles concorrentes; só o desfoque vai para mediaEffects.
-                  if (key === 'homeSecondHeroBg') {
-                    return {
-                      maskEnabled: draft.home.secondHero.overlayEnabled,
-                      maskOpacity: draft.home.secondHero.overlayOpacity,
-                      blur: effect.blur,
-                      hint,
-                      onChange: ({ maskEnabled, maskOpacity, blur }) => {
-                        setDraft((d) => ({
-                          ...d,
-                          home: {
-                            ...d.home,
-                            secondHero: {
-                              ...d.home.secondHero,
-                              overlayEnabled: maskEnabled,
-                              overlayOpacity: maskOpacity,
-                            },
-                          },
-                          mediaEffects: {
-                            ...d.mediaEffects,
-                            [key]: { maskEnabled: false, maskOpacity: 0, blur },
-                          },
-                        }));
-                      },
-                    };
-                  }
-
-                  if (key === 'aboutHeroBg') {
-                    return {
-                      maskEnabled: draft.about.heroMaskEnabled,
-                      maskOpacity: draft.about.heroMaskOpacity,
-                      blur: effect.blur,
-                      hint,
-                      onChange: ({ maskEnabled, maskOpacity, blur }) => {
-                        setDraft((d) => ({
-                          ...d,
-                          about: {
-                            ...d.about,
-                            heroMaskEnabled: maskEnabled,
-                            heroMaskOpacity: maskOpacity,
-                          },
-                          mediaEffects: {
-                            ...d.mediaEffects,
-                            [key]: { maskEnabled: false, maskOpacity: 0, blur },
-                          },
-                        }));
-                      },
-                    };
-                  }
-
-                  return { ...effect, hint, onChange: writeEffect };
-                }}
+                dirty={dirtySections.media}
               />
             )}
             {active === 'typography' && (
@@ -715,7 +827,7 @@ export default function AdminDashboard() {
                   value={draft.typography}
                   onChange={(typography) => setDraft((d) => ({ ...d, typography }))}
                 />
-                <SectionSaveBar onSave={saveTypography} label="Salvar fontes" />
+                <SectionSaveBar onSave={saveTypography} label="Salvar fontes" dirty={dirtySections.typography} />
               </Section>
             )}
             {active === 'users' && <AdminUsersPanel />}
@@ -753,6 +865,10 @@ export default function AdminDashboard() {
                 </div>
 
                 {navTab === 'menu' && (<>
+                <MediaBlock title="Imagens do menu">
+                  {mediaField('navLogo')}
+                  {mediaField('navEagle', '160px')}
+                </MediaBlock>
                 <div className="grid md:grid-cols-3 gap-4">
                   <div>
                     <FieldHead label="Link — Home" path="nav.home" />
@@ -797,6 +913,7 @@ export default function AdminDashboard() {
                 </>)}
 
                 {navTab === 'footer' && (<>
+                <MediaBlock title="Imagem do rodapé">{mediaField('footerLogo')}</MediaBlock>
                 <div>
                   <FieldHead label="Rodapé — tagline" path="footer.tagline" />
                   <RichTextEditor
@@ -1238,7 +1355,11 @@ export default function AdminDashboard() {
                 </div>
                 </>)}
 
-                <SectionSaveBar onSave={saveNavFooter} label="Salvar menu e rodapé" />
+                <SectionSaveBar
+                  onSave={saveNavFooter}
+                  label="Salvar menu e rodapé"
+                  dirty={dirtySections['nav-footer']}
+                />
               </Section>
             )}
 
@@ -1319,7 +1440,8 @@ export default function AdminDashboard() {
                     <div className="space-y-3">
                       <VideoUploader
                         label="Vídeo do banner"
-                        hint="Formato MP4 na horizontal (ex.: 1920x1080px)."
+                        where="Banner de abertura da Home, no topo da página."
+                        hint="Recomendado: MP4 na horizontal (1920x1080px)"
                         value={draft.home.heroMedia.videoUrl || draft.media.homeHeroVideo}
                         onChange={(url) =>
                           setDraft((d) => ({
@@ -1335,7 +1457,7 @@ export default function AdminDashboard() {
                         <label className={lbCls}>Ou cole a URL do vídeo</label>
                         <input
                           className={inCls}
-                          placeholder="Deixe vazio para usar o vídeo da aba Mídias"
+                          placeholder="Vazio = usa o vídeo padrão, em Mídias > Home"
                           value={draft.home.heroMedia.videoUrl}
                           onChange={(e) =>
                             setDraft((d) => ({
@@ -1470,8 +1592,13 @@ export default function AdminDashboard() {
                     Texto principal (segundo hero)
                   </p>
                   <p className="text-xs text-zinc-500 mt-1">
-                    Bloco com título e subtítulo sobre a imagem de fundo. A imagem é trocada na aba Mídias (&quot;Home — fundo do segundo hero&quot;).
+                    Bloco com título e subtítulo sobre a imagem de fundo.
                   </p>
+                  <div className="mt-4">
+                    <MediaBlock title="Imagem de fundo do segundo hero">
+                      {mediaField('homeSecondHeroBg', '320px')}
+                    </MediaBlock>
+                  </div>
                 </div>
                 <div>
                   <FieldHead label="Eyebrow" path="home.hero.eyebrow" />
@@ -1755,6 +1882,7 @@ export default function AdminDashboard() {
                 </>)}
 
                 {homeTab === 'experience' && (<>
+                <MediaBlock>{mediaField('homeExperienceImage', '280px')}</MediaBlock>
                 <div>
                   <FieldHead label="Título linha 1" path="home.experience.titleLine1" />
                   <input
@@ -2125,6 +2253,7 @@ export default function AdminDashboard() {
                 </>)}
 
                 {homeTab === 'teaser' && (<>
+                <MediaBlock>{mediaField('homeFranchiseTeaserImage', '280px')}</MediaBlock>
                 <div>
                   <FieldHead label="Eyebrow" path="home.franchiseTeaser.eyebrow" />
                   <input
@@ -2221,7 +2350,7 @@ export default function AdminDashboard() {
                 </div>
                 </>)}
 
-                <SectionSaveBar onSave={saveHome} label="Salvar página Home" />
+                <SectionSaveBar onSave={saveHome} label="Salvar página Home" dirty={dirtySections.home} />
               </Section>
             )}
 
@@ -2253,6 +2382,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {aboutTab === 'hero' && (<>
+                <MediaBlock>{mediaField('aboutHeroBg', '320px')}</MediaBlock>
                 <div>
                   <FieldHead label="Hero — título" path="about.heroTitle" />
                   <RichTextEditor
@@ -2319,6 +2449,7 @@ export default function AdminDashboard() {
                 </>)}
 
                 {aboutTab === 'story' && (<>
+                <MediaBlock>{mediaField('aboutStoryImage')}</MediaBlock>
                 <div>
                   <FieldHead label="Nossa história — título" path="about.storyTitle" />
                   <input
@@ -2356,6 +2487,7 @@ export default function AdminDashboard() {
                 </>)}
 
                 {aboutTab === 'pillars' && (<>
+                <MediaBlock>{mediaField('aboutPillarsImage', '240px')}</MediaBlock>
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -2504,7 +2636,7 @@ export default function AdminDashboard() {
                 </div>
                 </>)}
 
-                <SectionSaveBar onSave={saveAbout} label="Salvar página Sobre" />
+                <SectionSaveBar onSave={saveAbout} label="Salvar página Sobre" dirty={dirtySections.about} />
               </Section>
             )}
 
@@ -2537,6 +2669,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {franchiseTab === 'hero' && (<>
+                <MediaBlock title="Vídeo do topo">{mediaField('franchiseHeroVideo', '220px')}</MediaBlock>
                 <div>
                   <FieldHead label="Eyebrow" path="franchise.heroEyebrow" />
                   <input
@@ -3205,7 +3338,11 @@ export default function AdminDashboard() {
                 </div>
                 </>)}
 
-                <SectionSaveBar onSave={saveFranchise} label="Salvar página Franquia" />
+                <SectionSaveBar
+                  onSave={saveFranchise}
+                  label="Salvar página Franquia"
+                  dirty={dirtySections.franchise}
+                />
               </Section>
             )}
           </div>
